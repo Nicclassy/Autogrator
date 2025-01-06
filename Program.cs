@@ -13,11 +13,10 @@ public static class Program {
     }
     public static void Main() {
        var receiver = OutlookEmailReceiver.Create();
-       if (receiver.TryReceiveEmail(out var email)) {
-            Log.Information($"Received information: {email}");
-       } else {
-            Log.Information("Did not receive anything.");
-       }
-       Log.CloseAndFlush();
+        while (true) {
+            if (receiver.TryReceiveEmail(out var email)) {
+                Log.Information($"Received email: {email.Subject}");
+            }
+        }
     }
 }

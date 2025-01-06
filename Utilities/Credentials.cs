@@ -1,6 +1,6 @@
 ﻿using DotNetEnv;
 
-namespace Autogrator;
+namespace Autogrator.Utilities;
 
 public static class Credentials {
     static Credentials() {

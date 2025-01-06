@@ -3,6 +3,8 @@ using Outlook = Microsoft.Office.Interop.Outlook;
 
 using Serilog;
 
+using Autogrator.Utilities;
+
 namespace Autogrator.OutlookAutomation;
 
 public class OutlookEmailReceiver(Outlook.Application application, Outlook.NameSpace ns, Outlook.MAPIFolder inbox) {
@@ -11,10 +13,15 @@ public class OutlookEmailReceiver(Outlook.Application application, Outlook.NameS
         Outlook.Application application = new();
         Outlook.NameSpace ns = application.GetNamespace("MAPI");
 
+        bool retry = false;
         Log.Information($"Logging in with email {Credentials.Outlook.Email}...");
         try {
             LoginWithOptions(ns);
         } catch (System.Runtime.InteropServices.COMException) {
+            retry = true;
+        }
+
+        if (retry) {
             try {
                 // TODO: Automate profile creation
                 // Try again, but this time show dialog.
