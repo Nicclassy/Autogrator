@@ -4,23 +4,30 @@ using System.Text;
 using Serilog;
 
 using Autogrator.Utilities;
+using Autogrator.Extensions;
 
 namespace Autogrator.SharePointAutomation;
 
 public static class SharePointAuthenticator {
+    private const string UrlFormat = "https://login.microsoftonline.com/{0}/oauth2/v2.0/token";
+    private const string ContentFormat = "grant_type=client_credentials&client_id={0}&client_secret={1}&scope={2}/.default";
+    private const string MediaType = "application/x-www-form-urlencoded";
+
     public static string GetAccessToken(bool useStored) {
         if (useStored)
-            return Credentials.EnvironmentVariable("AG_SHAREPOINT_ACCESS_TOKEN");
+            return "AG_SHAREPOINT_ACCESS_TOKEN".Env();
         else
             return Task.Run(GetAccessToken).Result;
     }
 	public static async Task<string> GetAccessToken() {
-        string authUrl = $"https://login.microsoftonline.com/{Credentials.SharePoint.TenantID}/oauth2/v2.0/token";
-        StringContent data = new(
-            $"grant_type=client_credentials&client_id={Credentials.SharePoint.ClientID}&client_secret={Credentials.SharePoint.ClientSecret}&scope={Credentials.SharePoint.SiteURL}/.default",
-            Encoding.UTF8,
-            "application/x-www-form-urlencoded"
+        string authUrl = string.Format(UrlFormat, Credentials.SharePoint.TenantID);
+        string dataContent = string.Format(
+            ContentFormat, 
+            Credentials.SharePoint.ClientID, 
+            Credentials.SharePoint.ClientSecret, 
+            Credentials.SharePoint.SiteURL
         );
+        StringContent data = new(dataContent, Encoding.UTF8, MediaType);
 
         using HttpClient httpClient = new();
         HttpResponseMessage authResponse = await httpClient.PostAsync(authUrl, data);
