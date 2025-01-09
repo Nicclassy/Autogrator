@@ -1,31 +1,25 @@
-﻿using System.Text.Json;
-using System.Text;
+﻿using System.Text;
+using System.Text.Json;
 
 using Serilog;
 
-using Autogrator.Utilities;
-using Autogrator.Extensions;
+namespace Autogrator.Utilities;
 
-namespace Autogrator.SharePointAutomation;
-
-public static class SharePointAuthenticator {
+public static class JWTAccessTokenUtils {
     private const string UrlFormat = "https://login.microsoftonline.com/{0}/oauth2/v2.0/token";
-    private const string ContentFormat = "grant_type=client_credentials&client_id={0}&client_secret={1}&scope={2}/.default";
+    private const string ContentFormat = "grant_type=client_credentials&client_id={0}&client_secret={1}&scope={2}";
     private const string MediaType = "application/x-www-form-urlencoded";
 
-    public static string GetAccessToken(bool useStored) {
-        if (useStored)
-            return "AG_SHAREPOINT_ACCESS_TOKEN".Env();
-        else
-            return Task.Run(GetAccessToken).Result;
-    }
-	public static async Task<string> GetAccessToken() {
-        string authUrl = string.Format(UrlFormat, Credentials.SharePoint.TenantID);
+    public static string GetAccessToken(bool useStored = false) =>
+        useStored ? AutogratorApplication.AccessToken : GetAccessToken().Result;
+
+    private static async Task<string> GetAccessToken() {
+        string authUrl = string.Format(UrlFormat, AutogratorApplication.TenantID);
         string dataContent = string.Format(
-            ContentFormat, 
-            Credentials.SharePoint.ClientID, 
-            Credentials.SharePoint.ClientSecret, 
-            Credentials.SharePoint.SiteURL
+            ContentFormat,
+            AutogratorApplication.ClientID,
+            AutogratorApplication.ClientSecret,
+            AutogratorApplication.Scope
         );
         StringContent data = new(dataContent, Encoding.UTF8, MediaType);
 
@@ -35,7 +29,7 @@ public static class SharePointAuthenticator {
 
         string content = await authResponse.Content.ReadAsStringAsync();
         using JsonDocument json = JsonDocument.Parse(content);
-        string token = 
+        string token =
             json.RootElement.GetProperty("access_token").GetString()
             ?? throw new InvalidDataException("Access token not found");
         Log.Information("Token succesfully obtained.");
