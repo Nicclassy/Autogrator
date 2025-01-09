@@ -1,49 +1,31 @@
 ﻿using System.Collections.Concurrent;
+
 using Outlook = Microsoft.Office.Interop.Outlook;
-
 using Serilog;
-
-using Autogrator.Utilities;
 
 namespace Autogrator.OutlookAutomation;
 
-public sealed class OutlookEmailReceiver(Outlook.Application application, Outlook.NameSpace ns, Outlook.MAPIFolder inbox) : IDisposable {
+public sealed class OutlookEmailReceiver(OutlookAuthenticator authenticator) : IDisposable {
+    private readonly bool authenticationComplete =
+        authenticator.AutheticationComplete ? true : throw new InvalidOperationException("Authentication must be complete first.");
+    private readonly Outlook.Application application = authenticator.Application;
+    private readonly Outlook.NameSpace ns = authenticator.NameSpace;
     private readonly ConcurrentQueue<Outlook.MailItem> emailsTodo = new();
-    public Outlook.MAPIFolder Inbox => inbox;
 
-    public static OutlookEmailReceiver Create() {
-        Outlook.Application application = new();
-        Outlook.NameSpace ns = application.GetNamespace("MAPI");
+    public Outlook.MAPIFolder Inbox => ns.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderInbox);
 
-        bool retry = false;
-        Log.Information($"Logging in with email {Credentials.Outlook.Email}");
-        try {
-            LoginWithOptions(ns, showDialog: false, newSession: true);
-        } catch (System.Runtime.InteropServices.COMException) {
-            Log.Warning("Initial login attempt failed. Retrying with dialog...");
-            retry = true;
-        }
-
-        if (retry) {
-            try {
-                // TODO: Automate profile creation
-                // Try again, but this time show dialog.
-                // The error previously thrown may be a consequence
-                // of no profile existing. Hence, showing the dialog box
-                // enables the user to create a profile and thus avoid the error
-                LoginWithOptions(ns, showDialog: true, newSession: true);
-            } catch (System.Runtime.InteropServices.COMException ex) {
-                Log.Fatal($"Login failed: {ex.Message}");
-                Environment.Exit(ex.ErrorCode);
-            }
-        }
-        Log.Information("Successfully logged in!");
-
-        Outlook.MAPIFolder inbox = ns.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderInbox);
-        return new(application, ns, inbox);
+    internal static OutlookEmailReceiver Create() {
+        OutlookAuthenticator authenticator = new();
+        authenticator.Login();
+        return new(authenticator);
     }
 
     public void Listen() {
+        if (!authenticationComplete) {
+            Log.Fatal("Authentication must be complete prior to listening for emails.");
+            Environment.Exit(1);
+        }
+
         application.NewMailEx += delegate(string entryID) {
             Outlook.MailItem email = ns.GetItemFromID(entryID);
             emailsTodo.Enqueue(email);
@@ -53,9 +35,6 @@ public sealed class OutlookEmailReceiver(Outlook.Application application, Outloo
     }
 
     public bool TryReceiveEmail(out Outlook.MailItem email) => emailsTodo.TryDequeue(out email!);
-
-    private static void LoginWithOptions(Outlook.NameSpace ns, bool showDialog, bool newSession) =>
-        ns.Logon(Credentials.Outlook.Email, Credentials.Outlook.Password, ShowDialog: showDialog, NewSession: newSession);
 
     public void Dispose() => ns.Logoff();
 }

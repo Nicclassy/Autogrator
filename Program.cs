@@ -5,6 +5,8 @@ using Serilog;
 using Autogrator.OutlookAutomation;
 using Autogrator.Extensions;
 using Autogrator.Helpers;
+using Autogrator.SharePointAutomation;
+using Autogrator.Utilities;
 
 namespace Autogrator;
 
@@ -50,18 +52,31 @@ public static class Program {
     }
 
     public static void PrintEmailAddresses() {
-        using OutlookEmailReceiver receiver = OutlookEmailReceiver.Create();
+        OutlookAuthenticator authenticator = new();
+        authenticator.Login();
+
+        using OutlookEmailReceiver receiver = new(authenticator);
         foreach (Outlook.MailItem mailItem in receiver.Inbox.EmailsByLatest()) {
             if (EmailHelper.IsEmailAddress(mailItem.SenderEmailAddress))
                 Console.WriteLine(mailItem.SenderEmailAddress);
         }
     }
 
-    public static void PrintRootSiteID() {
-        using AutogratorApplicationClient client = new();
-        var result = client.GetRootSite().Result;
-        Console.WriteLine(result!.Id);
+    public static void PrintLatestEmail() {
+        OutlookAuthenticator authenticator = new();
+        authenticator.Login();
+
+        using OutlookEmailReceiver receiver = new(authenticator);
+        Console.WriteLine($"Latest email subject: {receiver.Inbox.LatestEmail()!.Subject}");
     }
 
-    public static void Main() {}
+    public static async Task PrintSubfolders() {
+        AutogratorApplicationClient client = new();
+        foreach (var child in await client.GetSiteSubfoldersAsync(Sites.DefaultSitePath) ?? [])
+            Console.WriteLine($"Child name: {child.Name}");
+    }
+
+    public static void Main() {
+        PrintSubfolders().GetAwaiter().GetResult();
+    }
 }

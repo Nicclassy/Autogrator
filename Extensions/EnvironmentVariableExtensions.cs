@@ -1,6 +1,4 @@
-﻿using System;
-
-using DotNetEnv;
+﻿using DotNetEnv;
 
 namespace Autogrator.Extensions;
 
@@ -9,9 +7,9 @@ public static class EnvironmentVariableExtensions {
         DotNetEnv.Env.Load(FindPathUpwards(".env"));
     }
 
-    public static string Env(this string name) {
+    public static string EnvVariable(this string name, bool allowEmpty = false) {
         string? value = Environment.GetEnvironmentVariable(name);
-        if (string.IsNullOrWhiteSpace(value))
+        if (value is null || (!allowEmpty && string.IsNullOrWhiteSpace(value)))
             throw new EnvVariableNotFoundException("Environment variable not found.", name);
         return value;
     }
