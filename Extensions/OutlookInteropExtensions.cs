@@ -1,6 +1,4 @@
-﻿using System;
-
-using Outlook = Microsoft.Office.Interop.Outlook;
+﻿using Outlook = Microsoft.Office.Interop.Outlook;
 
 namespace Autogrator.Extensions;
 
