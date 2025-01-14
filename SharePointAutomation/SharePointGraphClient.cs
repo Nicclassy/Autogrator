@@ -1,8 +1,8 @@
 ﻿using System.Text.Json;
 
-using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using Serilog;
+using System.Diagnostics;
 
 using Autogrator.Extensions;
 using Autogrator.Exceptions;
@@ -10,14 +10,34 @@ using Autogrator.Utilities;
 
 namespace Autogrator.SharePointAutomation;
 
-public sealed class SharePointGraphClient(HttpClient httpClient) {
+public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
+    private static readonly JsonSerializerOptions SerializerOptions = new() {
+        WriteIndented = true,
+        PropertyNameCaseInsensitive = true
+    };
+
+    internal GraphHttpClient HttpClient { get; } = httpClient;
+
+    internal async Task<List<string>> GetItemsInDrive(string? driveName = null, string? sitePath = null) {
+        string driveId = await GetDriveId(driveName, sitePath);
+        string content = await HttpClient.GetAsync($"/drives/{driveId}/root/children", default);
+
+        List<string> items = [];
+        JToken root = JToken.Parse(content);
+        root.Walk(property => {
+            if (property.Name == "name")
+                items.Add(property.Value.ToString());
+        });
+        return items;
+    } 
+
     internal async Task<string> GetSiteId(string? sitePath = null) =>
-        await GetContentValueAsync($"/sites/{SharePointSite.Hostname}:{sitePath ?? GraphAPI.DefaultSitePath}", "id", default);
+        await HttpClient.GetKeyAsync($"/sites/{SharePointSite.Hostname}:{sitePath ?? GraphAPI.DefaultSitePath}", "id", default);
     
     internal async Task<string> GetDriveId(string? driveName = null, string? sitePath = null) {
         string siteId = await GetSiteId(sitePath);
         string endpoint = $"/sites/{siteId}/drives";
-        string content = await GetContentAsync(endpoint, default);
+        string content = await HttpClient.GetAsync(endpoint, default);
         driveName ??= GraphAPI.DefaultDriveName;
 
         JObject root = JObject.Parse(content);
@@ -37,31 +57,15 @@ public sealed class SharePointGraphClient(HttpClient httpClient) {
         return id;
     }
 
-    internal async Task<T> GetAsync<T>(string endpoint, CancellationToken cancellationToken) {
-        string content = await GetContentAsync(endpoint, cancellationToken);
-        return JsonSerializer.Deserialize<T>(content)!;
+    internal async Task<string> CreateFolder(FolderUploadInfo folderUpload) {
+        if (folderUpload.Path is string path)
+            Debug.Assert(path[0] == '/', "Path should start with '/'");
+        string fullPath = folderUpload.Path is null ? "root" : $"root:{folderUpload.Path}:";
+        string endpoint = $"/sites/{folderUpload.SiteId}/drives/{folderUpload.DriveId}/{fullPath}/children";
+
+        DriveItemUpload driveItem = new(folderUpload.Name);
+        string data = JsonSerializer.Serialize(driveItem, SerializerOptions);
+        Log.Information($"Creating folder with endpoint {endpoint} and request body {data.Colourise(AnsiColours.Magenta)}");
+        return await HttpClient.PostAsync(endpoint, data, default);
     }
-
-    internal async Task<string> GetContentValueAsync(string endpoint, string key, CancellationToken cancellationToken) {
-        string content = await GetContentAsync($"{endpoint}?$select={key}", cancellationToken);
-        using JsonDocument document = JsonDocument.Parse(content);
-        return document.RootElement.GetProperty(key).GetString()!;
-    }
-
-    internal async Task<string> GetContentAsync(string endpoint, CancellationToken cancellationToken) {
-        string requestUri = RequestUri(endpoint);
-        HttpResponseMessage message = await httpClient.GetAsync(requestUri, cancellationToken);
-        if (!message.IsSuccessStatusCode) {
-            string failedRequest = $"GET {endpoint}".Colourise(AnsiColours.Green);
-            Log.Fatal(
-                $"Request {failedRequest} failed with status code {(int) message.StatusCode} " +
-                $"with reason {message.ReasonPhrase}"
-            );
-            throw new RequestUnsuccessfulException();
-        }
-
-        return await message.Content.ReadAsStringAsync();
-    }
-
-    private string RequestUri(string endpoint) => GraphAPI.URL + endpoint;
 }
