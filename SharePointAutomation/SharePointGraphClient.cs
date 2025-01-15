@@ -12,13 +12,14 @@ namespace Autogrator.SharePointAutomation;
 
 public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
     private static readonly JsonSerializerOptions SerializerOptions = new() {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
         PropertyNameCaseInsensitive = true
     };
 
     internal GraphHttpClient HttpClient { get; } = httpClient;
 
-    internal async Task<List<string>> GetItemsInDrive(string? driveName = null, string? sitePath = null) {
+    internal async Task<List<string>> GetDriveItemNames(string? driveName = null, string? sitePath = null) {
         string driveId = await GetDriveId(driveName, sitePath);
         string content = await HttpClient.GetAsync($"/drives/{driveId}/root/children", default);
 
@@ -30,6 +31,23 @@ public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
         });
         return items;
     } 
+
+    internal async Task<IEnumerable<DriveItemInfo>> GetDriveItems(string? driveName = null, string? sitePath = null) {
+        string driveId = await GetDriveId(driveName, sitePath);
+        IEnumerable<JToken> items = await HttpClient.GetValuesByKeysAsync($"/drives/{driveId}/root/children", default, "name", "id");
+        return items.Select(DriveItemInfo.Parse);
+    }
+
+    internal async Task<string> GetItemId(string itemName, Func<string, string> stringFormatter, string? driveName = null, string? sitePath = null) {
+        IEnumerable<DriveItemInfo> driveItems = await GetDriveItems(driveName, sitePath);
+        DriveItemInfo? result = driveItems.FirstOrDefault(item => stringFormatter(item.Name) == itemName);
+        if (result is null) {
+            Log.Fatal($"Could not find ID for item with name {itemName}");
+            Environment.Exit(1);
+        }
+
+        return result.Value.Id;
+    }
 
     internal async Task<string> GetSiteId(string? sitePath = null) =>
         await HttpClient.GetKeyAsync($"/sites/{SharePointSite.Hostname}:{sitePath ?? GraphAPI.DefaultSitePath}", "id", default);
@@ -59,13 +77,17 @@ public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
 
     internal async Task<string> CreateFolder(FolderUploadInfo folderUpload) {
         if (folderUpload.Path is string path)
-            Debug.Assert(path[0] == '/', "Path should start with '/'");
+            Debug.Assert(path[0] == '/', "Path must start with '/'");
+
         string fullPath = folderUpload.Path is null ? "root" : $"root:{folderUpload.Path}:";
         string endpoint = $"/sites/{folderUpload.SiteId}/drives/{folderUpload.DriveId}/{fullPath}/children";
 
         DriveItemUpload driveItem = new(folderUpload.Name);
         string data = JsonSerializer.Serialize(driveItem, SerializerOptions);
         Log.Information($"Creating folder with endpoint {endpoint} and request body {data.Colourise(AnsiColours.Magenta)}");
-        return await HttpClient.PostAsync(endpoint, data, default);
+        
+        string response = await HttpClient.PostAsync(endpoint, data, default);
+        Log.Information($"Succesfully created folder {folderUpload.Path ?? string.Empty}/{folderUpload.Name}");
+        return response;
     }
 }
