@@ -31,12 +31,8 @@ public sealed class GraphHttpClient(HttpClient httpClient) {
     internal async Task<string> GetAsync(string endpoint, CancellationToken cancellationToken) {
         string requestUri = CreateRequestUri(endpoint);
         HttpResponseMessage message = await httpClient.GetAsync(requestUri, cancellationToken);
-        if (!message.IsSuccessStatusCode) {
-            string errorMessage = $"Request GET {endpoint} failed with status code {(int)message.StatusCode}. "
-                + $"Reason: {message.ReasonPhrase}";
-            Log.Fatal(errorMessage.Colourise(AnsiColours.Red));
-            throw new RequestUnsuccessfulException();
-        }
+        if (!message.IsSuccessStatusCode)
+            LogFailureAndExit(endpoint, message);
 
         return await message.Content.ReadAsStringAsync(cancellationToken);
     }
@@ -45,20 +41,27 @@ public sealed class GraphHttpClient(HttpClient httpClient) {
         string requestUri = CreateRequestUri(endpoint);
         StringContent content = new(data, PostEncoding, PostMediaType);
         HttpResponseMessage message = await httpClient.PostAsync(requestUri, content, cancellationToken);
-        if (!message.IsSuccessStatusCode) {
-            string errorMessage = $"Request POST {endpoint} failed with status code {(int)message.StatusCode}. "
-                + $"Reason: {message.ReasonPhrase}";
-            Log.Fatal(errorMessage.Colourise(AnsiColours.Red));
-            throw new RequestUnsuccessfulException();
-        }
+        if (!message.IsSuccessStatusCode)
+            LogFailureAndExit(endpoint, message);
 
         return await message.Content.ReadAsStringAsync(cancellationToken);
     }
 
-    //internal async Task UploadAsync(FileUploadInfo uploadInfo, CancellationToken cancellationToken) {
-    //    byte[] content = File.ReadAllBytes(uploadInfo.LocalFilePath);
-    //    ByteArrayContent uploadData = new(content);
-    //}
+    internal async Task<string> PutAsync(string endpoint, HttpContent content, CancellationToken cancellationToken) {
+        string requestUri = CreateRequestUri(endpoint);
+        HttpResponseMessage message = await httpClient.PostAsync(requestUri, content, cancellationToken);
+        if (!message.IsSuccessStatusCode)
+            LogFailureAndExit(endpoint, message);
+
+        return await message.Content.ReadAsStringAsync(cancellationToken);
+    }
+
+    private static void LogFailureAndExit(string endpoint, HttpResponseMessage message) {
+        string errorMessage = $"Request POST {endpoint} failed with status code {(int)message.StatusCode}. "
+                + $"Reason: {message.ReasonPhrase}";
+        Log.Fatal(errorMessage.Colourise(AnsiColours.Red));
+        throw new RequestUnsuccessfulException();
+    }
 
     private static string CreateRequestUri(string endpoint) => GraphAPI.URL + endpoint;
 
