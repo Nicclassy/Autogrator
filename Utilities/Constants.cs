@@ -7,10 +7,15 @@ public static class Directories {
     public static readonly string OutlookExecutable = "AG_OUTLOOK_EXE".EnvVariable();
 }
 
-public static class Sites {
+public static class GraphAPI {
+    public static readonly string URL = "AG_GRAPH_URL".EnvVariable();
+    public static readonly string DefaultSitePath = "AG_GRAPH_DEFAULT_SITE_PATH".EnvVariable();
+    public static readonly string DefaultDriveName = "AG_GRAPH_DEFAULT_DRIVE_NAME".EnvVariable();
+}
+
+public static class SharePointSite {
+    public static readonly string URL = "AG_SHAREPOINT_URL".EnvVariable();
     public static readonly string Hostname = "AG_SHAREPOINT_HOSTNAME".EnvVariable();
-    public static readonly string DefaultSitePath = "AG_SHAREPOINT_DEFAULT_SITE_PATH".EnvVariable();
-    public static readonly string SharePointURL = "AG_SHAREPOINT_URL".EnvVariable();
 }
 
 public static class Credentials {

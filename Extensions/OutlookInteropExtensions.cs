@@ -11,4 +11,7 @@ public static class OutlookInteropExtensions {
 
     public static Outlook.MailItem? LatestEmail(this Outlook.MAPIFolder folder) =>
         folder.EmailsByLatest().FirstOrDefault();
+
+    public static string ExportFileName(this Outlook.MailItem mailItem) =>
+        mailItem.EntryID.ToString();
 }

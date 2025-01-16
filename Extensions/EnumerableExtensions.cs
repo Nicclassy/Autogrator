@@ -5,8 +5,8 @@ namespace Autogrator.Extensions;
 public static class EnumerableExtensions {
     public static void Print<T>(
         this IEnumerable<T> source, 
-        string delimiter = ", ", 
-        Func<T, string>? formatter = null
+        Func<T, string>? formatter = null,
+        string delimiter = ", "
     ) where T: notnull {
         string FormatValue(T value) => $"\"{formatter?.Invoke(value) ?? value.ToString()}\"";
 

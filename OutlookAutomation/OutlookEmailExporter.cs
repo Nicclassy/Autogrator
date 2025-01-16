@@ -1,11 +1,16 @@
 ﻿using Outlook = Microsoft.Office.Interop.Outlook;
 using Word = Microsoft.Office.Interop.Word;
-
 using Serilog;
 
 using Autogrator.Utilities;
+using Autogrator.Extensions;
 
 namespace Autogrator.OutlookAutomation;
+
+internal enum ExportResult {
+    Ok = 0,
+    FileExists = 1,
+}
 
 public static class OutlookEmailExporter {
     private const Outlook.OlSaveAsType SaveAsType = Outlook.OlSaveAsType.olHTML;
@@ -13,21 +18,23 @@ public static class OutlookEmailExporter {
 
     public static void SaveAndExportEmail(
         Outlook.MailItem email,
+        out string exportedFilePath,
         string? directory = null,
         Outlook.OlSaveAsType saveAsType = SaveAsType,
         Word.WdSaveFormat exportFormat = ExportFormat
     ) {
-        string fileName = email.EntryID.ToString();
+        string fileName = email.ExportFileName();
         string fileExtension = GetFileExtensionWithoutPrefix(SaveAsType, "ol");
 
         string savedFileDir = directory ?? Directories.DownloadsFolder;
         string savedFileName = $"{fileName}.{fileExtension}";
         string savedFilePath = Path.Combine(savedFileDir, savedFileName);
 
-        email.SaveAs(savedFilePath, saveAsType);
-
-        Log.Information($"Saved email to {savedFilePath}");
-        ExportEmail(savedFilePath, exportFormat);
+        ExportResult exportResult = 
+            ExportEmail(savedFilePath, email, saveAsType, exportFormat, out exportedFilePath);
+        if (exportResult == ExportResult.FileExists)
+            // Nothing was created therefore nothing needs deletion. The function can stop here.
+            return;
 
         // Delete the temporary email file. Only the exported verison is needed
         // A files folder is also generated containing attachments and other files;
@@ -36,31 +43,47 @@ public static class OutlookEmailExporter {
         if (Directory.Exists(filesFolder))
             Directory.Delete(filesFolder, recursive: true);
         else
-            Log.Warning($"Files folder '{filesFolder}' does not exist even though it is usually generated");
+            Log.Warning($"Files folder '{filesFolder}' does not exist even though it should be generated");
 
         if (!File.Exists(savedFilePath)) {
             Log.Fatal($"File '{savedFilePath}' was expected to be generated but does not exist");
             Environment.Exit(1);
         }
         File.Delete(savedFilePath);
+
+        Log.Information($"Successfully exported email.");
     }
 
-    private static void ExportEmail(string directory, Word.WdSaveFormat exportFormat) {
-        // Using Word Interop to save the file
-        Word.Application word = new();
-        Word.Document document = word.Documents.Open(directory);
-
-        string fileName = Path.GetFileNameWithoutExtension(directory)!;
+    private static ExportResult ExportEmail(
+        string path, 
+        Outlook.MailItem email,
+        Outlook.OlSaveAsType saveAsType,
+        Word.WdSaveFormat exportFormat,
+        out string exportedFilePath
+    ) {
+        string fileName = Path.GetFileNameWithoutExtension(path)!;
         string fileExtension = GetFileExtensionWithoutPrefix(ExportFormat, "wdFormat");
 
         string exportedFileName = $"{fileName}.{fileExtension}";
-        string exportedFilePath = 
-            Path.Combine(Path.GetDirectoryName(directory)!, exportedFileName);
+        exportedFilePath = 
+            Path.Combine(Path.GetDirectoryName(path)!, exportedFileName);
 
-        Log.Information($"Exporting file to path '{exportedFilePath}'");
+        if (File.Exists(exportedFilePath)) {
+            Log.Information($"The file that will be exported {exportedFilePath} already exists.");
+            return ExportResult.FileExists;
+        }
+
+        email.SaveAs(path, saveAsType);
+
+        Word.Application word = new();
+        Word.Document document = word.Documents.Open(path);
+
         document.SaveAs2(exportedFilePath, exportFormat);
+        Log.Information($"Exported file to path '{exportedFilePath}'");
+
         document.Close();
         word.Quit();
+        return ExportResult.Ok;
     }
 
     private static string GetFileExtensionWithoutPrefix(Enum extensionValue, string prefix) =>

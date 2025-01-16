@@ -1,9 +1,8 @@
-﻿using System;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 using Serilog;
 
-using Autogrator.Utilities;
+namespace Autogrator.Utilities;
 
 public static class OutlookUtilities {
     private static readonly string CreateProfileArgs = "/profile";
