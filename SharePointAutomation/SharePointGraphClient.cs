@@ -2,7 +2,6 @@
 
 using Newtonsoft.Json.Linq;
 using Serilog;
-using System.Diagnostics;
 
 using Autogrator.Extensions;
 using Autogrator.Exceptions;
@@ -19,34 +18,27 @@ public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
 
     internal GraphHttpClient HttpClient { get; } = httpClient;
 
-    internal async Task<List<string>> GetDriveItemNames(string? driveName = null, string? sitePath = null) {
+    internal async Task<IEnumerable<DriveItemInfo>> GetChildren(string fullpath, string? driveName = null, string? sitePath = null) {
         string driveId = await GetDriveId(driveName, sitePath);
-        string content = await HttpClient.GetAsync($"/drives/{driveId}/root/children", default);
-
-        List<string> items = [];
-        JToken root = JToken.Parse(content);
-        root.Walk(property => {
-            if (property.Name == "name")
-                items.Add(property.Value.ToString());
-        });
+        List<DriveItemInfo> items = await HttpClient
+            .GetPaginatedAsync<DriveItemInfo>($"/drives/{driveId}/{fullpath}/children", default, "name", "id");
         return items;
-    } 
-
-    internal async Task<IEnumerable<DriveItemInfo>> GetDriveItems(string? driveName = null, string? sitePath = null) {
-        string driveId = await GetDriveId(driveName, sitePath);
-        IEnumerable<JToken> items = await HttpClient.GetValuesByKeysAsync($"/drives/{driveId}/root/children", default, "name", "id");
-        return items.Select(DriveItemInfo.Parse);
     }
 
-    internal async Task<string> GetItemId(string itemName, Func<string, string> stringFormatter, string? driveName = null, string? sitePath = null) {
-        IEnumerable<DriveItemInfo> driveItems = await GetDriveItems(driveName, sitePath);
-        DriveItemInfo? result = driveItems.FirstOrDefault(item => stringFormatter(item.Name) == itemName);
-        if (result is null) {
-            Log.Fatal($"Could not find ID for item with name {itemName}");
+    internal async Task<string> GetItemId(
+        string itemName, string itemPath, string? driveName = null, string? sitePath = null
+    ) {
+        string fullpath = SharePointUtils.FormatFilePath(itemPath);
+        IEnumerable<DriveItemInfo> driveItems = await GetChildren(fullpath, driveName, sitePath);
+        
+        DriveItemInfo notFound = default;
+        DriveItemInfo result = driveItems.FirstOrDefault(item => item.Name == itemName, notFound);
+        if (result.Equals(notFound)) {
+            Log.Fatal($"Item with name '{itemName}' at path '{fullpath}' was not found");
             Environment.Exit(1);
         }
 
-        return result.Value.Id;
+        return result.Id;
     }
 
     internal async Task<string> GetSiteId(string? sitePath = null) =>
@@ -75,19 +67,29 @@ public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
         return id;
     }
 
-    internal async Task<string> CreateFolder(FolderUploadInfo folderUpload) {
-        if (folderUpload.Path is string path)
-            Debug.Assert(path[0] == '/', "Path must start with '/'");
+    internal async Task<string> CreateFolder(FolderCreationInfo folderCreation) {
+        string endpoint = 
+            $"/sites/{folderCreation.SiteId}/drives/{folderCreation.DriveId}/{folderCreation.Path}/children";
 
-        string fullPath = folderUpload.Path is null ? "root" : $"root:{folderUpload.Path}:";
-        string endpoint = $"/sites/{folderUpload.SiteId}/drives/{folderUpload.DriveId}/{fullPath}/children";
-
-        DriveItemUpload driveItem = new(folderUpload.Name);
+        DriveItemUpload driveItem = new(folderCreation.Name);
         string data = JsonSerializer.Serialize(driveItem, SerializerOptions);
-        Log.Information($"Creating folder with endpoint {endpoint} and request body {data.Colourise(AnsiColours.Magenta)}");
+        Log.Information(
+            $"Creating folder with endpoint {endpoint} and request body {data.Colourise(AnsiColours.Magenta)}"
+        );
         
         string response = await HttpClient.PostAsync(endpoint, data, default);
-        Log.Information($"Succesfully created folder {folderUpload.Path ?? string.Empty}/{folderUpload.Name}");
+        Log.Information($"Succesfully created folder {folderCreation.Path ?? string.Empty}/{folderCreation.Name}");
         return response;
     }
+
+    internal async Task<string> UploadFile(FileUploadInfo upload) {
+        // Documentation: https://learn.microsoft.com/en-us/graph/api/driveitem-put-content?view=graph-rest-1.0&tabs=http
+        string endpoint = 
+            $"/sites/{upload.SiteId}/drives/{upload.DriveId}/items/{upload.ParentId}:/{upload.FileName}:/content";
+        string filePath = Path.Combine(upload.LocalFileDir, upload.FileName);
+
+        byte[] data = File.ReadAllBytes(filePath);
+        ByteArrayContent content = new(data);
+        return await HttpClient.PutAsync(endpoint, content, default);
+    }   
 }

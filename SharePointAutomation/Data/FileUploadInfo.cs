@@ -2,7 +2,8 @@
 
 public readonly record struct FileUploadInfo(
     string FileName,
-    string FilePath,
-    string ParentName,
-    string DriveName
+    string LocalFileDir,
+    string ParentId,
+    string SiteId,
+    string DriveId
 );
