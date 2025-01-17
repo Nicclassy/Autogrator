@@ -1,7 +1,10 @@
 ﻿using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
+using System.IdentityModel.Tokens.Jwt;
 
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.IdentityModel.Tokens;
 using Serilog;
 
 using Autogrator.Exceptions;
@@ -14,7 +17,13 @@ internal sealed class AuthenticationHandler : DelegatingHandler {
     private const string ContentFormat = "grant_type=client_credentials&client_id={0}&client_secret={1}&scope={2}";
     private const string MediaType = "application/x-www-form-urlencoded";
 
-    internal AuthenticationHandler() : base(new HttpClientHandler()) { }
+    private const string CacheKey = "access_token";
+
+    private readonly JwtSecurityTokenHandler TokenHandler = new();
+    private readonly IMemoryCache memoryCache;
+
+    internal AuthenticationHandler(IMemoryCache memoryCache)
+        : base(new HttpClientHandler()) => this.memoryCache = memoryCache;
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
         string accessToken = await GetAccessToken();
@@ -22,7 +31,12 @@ internal sealed class AuthenticationHandler : DelegatingHandler {
         return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    private static async Task<string> GetAccessToken() {
+    private async Task<string> GetAccessToken() {
+        if (GetCachedAccessToken() is string cachedToken) {
+            Log.Information("Access token was found in the cache.");
+            return cachedToken;
+        }
+
         string authUrl = string.Format(UrlFormat, AutogratorApplication.TenantID);
         string dataContent = string.Format(
             ContentFormat,
@@ -41,10 +55,24 @@ internal sealed class AuthenticationHandler : DelegatingHandler {
 
         string content = await authResponse.Content.ReadAsStringAsync();
         using JsonDocument json = JsonDocument.Parse(content);
-        string token =
+        string accessToken =
             json.RootElement.GetProperty("access_token").GetString()
             ?? throw new InvalidDataException("Access token not found");
-        Log.Information("Token succesfully obtained.");
-        return token;
+        
+        CacheAccessToken(accessToken);
+        Log.Information("Token succesfully cached and obtained.");
+        return accessToken;
+    }
+
+    private string? GetCachedAccessToken() =>
+        memoryCache.TryGetValue(CacheKey, out object? value) && value is string accessToken
+            ? accessToken 
+            : null;
+
+    private void CacheAccessToken(string accessToken) {
+        SecurityToken token = TokenHandler.ReadToken(accessToken)!;
+        TimeSpan duration = token.ValidTo - token.ValidFrom;
+        Log.Information($"Token duration is {duration.Minutes} minutes");
+        memoryCache.Set(CacheKey, accessToken, duration);
     }
 }
