@@ -9,6 +9,7 @@ using Serilog;
 
 using Autogrator.Exceptions;
 using Autogrator.Utilities;
+using Newtonsoft.Json.Linq;
 
 namespace Autogrator.SharePointAutomation;
 
@@ -16,8 +17,7 @@ internal sealed class AuthenticationHandler : DelegatingHandler {
     private const string UrlFormat = "https://login.microsoftonline.com/{0}/oauth2/v2.0/token";
     private const string ContentFormat = "grant_type=client_credentials&client_id={0}&client_secret={1}&scope={2}";
     private const string MediaType = "application/x-www-form-urlencoded";
-
-    private const string CacheKey = "access_token";
+    private const string AccessTokenKey = "access_token";
 
     private readonly JwtSecurityTokenHandler TokenHandler = new();
     private readonly IMemoryCache memoryCache;
@@ -54,9 +54,8 @@ internal sealed class AuthenticationHandler : DelegatingHandler {
         }
 
         string content = await authResponse.Content.ReadAsStringAsync();
-        using JsonDocument json = JsonDocument.Parse(content);
-        string accessToken =
-            json.RootElement.GetProperty("access_token").GetString()
+        JObject json = JObject.Parse(content);
+        string accessToken = json[AccessTokenKey]?.ToString()
             ?? throw new InvalidDataException("Access token not found");
         
         CacheAccessToken(accessToken);
@@ -65,7 +64,7 @@ internal sealed class AuthenticationHandler : DelegatingHandler {
     }
 
     private string? GetCachedAccessToken() =>
-        memoryCache.TryGetValue(CacheKey, out object? value) && value is string accessToken
+        memoryCache.TryGetValue(AccessTokenKey, out object? value) && value is string accessToken
             ? accessToken 
             : null;
 
@@ -73,6 +72,6 @@ internal sealed class AuthenticationHandler : DelegatingHandler {
         SecurityToken token = TokenHandler.ReadToken(accessToken)!;
         TimeSpan duration = token.ValidTo - token.ValidFrom;
         Log.Information($"Token duration is {duration.Minutes} minutes");
-        memoryCache.Set(CacheKey, accessToken, duration);
+        memoryCache.Set(AccessTokenKey, accessToken, duration);
     }
 }

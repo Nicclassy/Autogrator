@@ -1,5 +1,4 @@
 ﻿using System.Text;
-using System.Text.Json;
 using System.Net.Http.Headers;
 
 using Newtonsoft.Json.Linq;
@@ -18,16 +17,13 @@ public sealed class GraphHttpClient(HttpClient httpClient) {
 
     internal async Task<string> GetKeyAsync(string endpoint, string key, CancellationToken cancellationToken) {
         string content = await GetAsync($"{endpoint}{FormatRequestKeys([key])}", cancellationToken);
-        using JsonDocument document = JsonDocument.Parse(content);
-        return document.RootElement.GetProperty(key).GetString()!;
-    }
-
-    internal async Task<IEnumerable<JToken>> GetValuesByKeysAsync(
-        string endpoint, CancellationToken cancellationToken, params string[] keys
-    ) {
-        string content = await GetAsync($"{endpoint}{FormatRequestKeys(keys)}", cancellationToken);
         JObject json = JObject.Parse(content);
-        return json["value"]!.Children();
+        if (json[key]?.ToString() is not string value) {
+            Log.Fatal($"Key '{key}' was not found in the response.");
+            throw new AppDataNotFoundException();
+        }
+
+        return value;
     }
 
     internal async Task<List<T>> GetPaginatedAsync<T>(
@@ -55,6 +51,15 @@ public sealed class GraphHttpClient(HttpClient httpClient) {
             LogFailureAndExit("GET", endpoint, response);
 
         return await response.Content.ReadAsStringAsync(cancellationToken);
+    }
+
+    internal async Task<Stream> GetStreamAsync(string endpoint, CancellationToken cancellationToken) {
+        string requestUri = CreateRequestUri(endpoint);
+        HttpResponseMessage response = await httpClient.GetAsync(requestUri, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            LogFailureAndExit("GET", endpoint, response);
+
+        return await response.Content.ReadAsStreamAsync(cancellationToken);
     }
 
     internal async Task<string> PostAsync(string endpoint, string data, CancellationToken cancellationToken) {

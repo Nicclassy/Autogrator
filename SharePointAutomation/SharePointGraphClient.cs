@@ -26,9 +26,9 @@ public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
     }
 
     internal async Task<string> GetItemId(
-        string itemName, string itemPath, string? driveName = null, string? sitePath = null
+        string itemName, string? itemPath = null, string? driveName = null, string? sitePath = null
     ) {
-        string fullpath = SharePointUtils.FormatFilePath(itemPath);
+        string fullpath = SharePointUtils.FormatItemPath(itemPath);
         IEnumerable<DriveItemInfo> driveItems = await GetChildren(fullpath, driveName, sitePath);
         
         DriveItemInfo notFound = default;
@@ -58,8 +58,8 @@ public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
             && name.ToString() == driveName
         )!;
 
-        string? id = drive["id"]?.Value<string>();
-        if (id is null) {
+        string? idValue = drive["id"]?.Value<string>();
+        if (idValue is not string id) {
             Log.Fatal($"ID for drive {driveName} was not found");
             throw new AppDataNotFoundException();
         }
@@ -86,10 +86,22 @@ public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
         // Documentation: https://learn.microsoft.com/en-us/graph/api/driveitem-put-content?view=graph-rest-1.0&tabs=http
         string endpoint = 
             $"/sites/{upload.SiteId}/drives/{upload.DriveId}/items/{upload.ParentId}:/{upload.FileName}:/content";
-        string filePath = Path.Combine(upload.LocalFileDir, upload.FileName);
 
-        byte[] data = File.ReadAllBytes(filePath);
+        byte[] data = File.ReadAllBytes(upload.LocalFilePath);
         ByteArrayContent content = new(data);
         return await HttpClient.PutAsync(endpoint, content, default);
-    }   
+    }
+
+    internal async Task DownloadFile(FileDownloadInfo download) {
+        if (File.Exists(download.DestinationPath)) {
+            Log.Information($"File '{download.FileName}' already exists in {download.DestinationFolder}");
+            return;
+        }
+
+        string endpoint = $"/drives/{download.DriveId}/items/{download.ItemId}/content";
+        await using Stream downloadStream = await HttpClient.GetStreamAsync(endpoint, default);
+        await using FileStream destinationStream = new(download.DestinationPath, FileMode.Create);
+        await downloadStream.CopyToAsync(destinationStream);
+        Log.Information($"Successfully downloaded {download.DestinationPath}");
+    }
 }
