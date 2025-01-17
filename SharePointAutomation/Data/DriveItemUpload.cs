@@ -1,6 +1,4 @@
-﻿using System.Text.Json.Serialization;
-
-namespace Autogrator.SharePointAutomation;
+﻿namespace Autogrator.SharePointAutomation;
 
 public sealed class DriveItemUpload(string _name) {
     public string? Name { get; set; } = _name;
