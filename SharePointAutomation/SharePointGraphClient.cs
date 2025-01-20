@@ -18,33 +18,33 @@ public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
 
     internal GraphHttpClient HttpClient { get; } = httpClient;
 
-    internal async Task<IEnumerable<DriveItemInfo>> GetChildren(string fullpath, string? driveName = null, string? sitePath = null) {
-        string driveId = await GetDriveId(driveName, sitePath);
+    internal async Task<IEnumerable<DriveItemInfo>> GetChildren(string fullpath, string driveId) {
         List<DriveItemInfo> items = await HttpClient
             .GetPaginatedAsync<DriveItemInfo>($"/drives/{driveId}/{fullpath}/children", default, "name", "id");
         return items;
     }
 
-    internal async Task<string> GetItemId(
-        string itemName, string? itemPath = null, string? driveName = null, string? sitePath = null
-    ) {
-        string fullpath = SharePointUtils.FormatItemPath(itemPath);
-        IEnumerable<DriveItemInfo> driveItems = await GetChildren(fullpath, driveName, sitePath);
+    internal async Task<string> GetItemId(string driveId, string name, string? path = null) {
+        string itemPath = SharePointUtils.FormatPath(path);
+        IEnumerable<DriveItemInfo> driveItems = await GetChildren(itemPath, driveId);
         
         DriveItemInfo notFound = default;
-        DriveItemInfo result = driveItems.FirstOrDefault(item => item.Name == itemName, notFound);
+        DriveItemInfo result = driveItems.FirstOrDefault(item => item.Name == name, notFound);
         if (result.Equals(notFound)) {
-            Log.Fatal($"Item with name '{itemName}' at path '{fullpath}' was not found");
-            Environment.Exit(1);
+            Log.Fatal(
+                "Item with name '{ItemName}' at path '{ItemPath}' was not found", 
+                name, itemPath
+            );
+            throw new AppDataNotFoundException();
         }
 
         return result.Id;
     }
 
-    internal async Task<string> GetSiteId(string? sitePath = null) =>
-        await HttpClient.GetKeyAsync($"/sites/{SharePointSite.Hostname}:{sitePath ?? GraphAPI.DefaultSitePath}", "id", default);
+    internal async Task<string> GetSiteId(string sitePath) =>
+        await HttpClient.GetKeyAsync($"/sites/{SharePointSite.Hostname}:{sitePath}", "id", default);
     
-    internal async Task<string> GetDriveId(string? driveName = null, string? sitePath = null) {
+    internal async Task<string> GetDriveId(string driveName, string sitePath) {
         string siteId = await GetSiteId(sitePath);
         string endpoint = $"/sites/{siteId}/drives";
         string content = await HttpClient.GetAsync(endpoint, default);
@@ -67,41 +67,50 @@ public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
         return id;
     }
 
-    internal async Task<string> CreateFolder(FolderCreationInfo folderCreation) {
-        string endpoint = 
-            $"/sites/{folderCreation.SiteId}/drives/{folderCreation.DriveId}/{folderCreation.Path}/children";
+    internal async Task<string> CreateFolder(FolderInfo folder, string driveId) {
+        string folderPath = SharePointUtils.FormatPath(folder.Directory);
+        string endpoint = $"/drives/{driveId}/{folderPath}/children";
 
-        DriveItemUpload driveItem = new(folderCreation.Name);
+        DriveItemUpload driveItem = new(folder.Name);
         string data = JsonSerializer.Serialize(driveItem, SerializerOptions);
         Log.Information(
-            $"Creating folder with endpoint {endpoint} and request body {data.Colourise(AnsiColours.Magenta)}"
+            "Creating folder with endpoint {Endpoint} and request body {RequestBody}",
+            endpoint, data.Colourise(AnsiColours.Magenta)
         );
         
         string response = await HttpClient.PostAsync(endpoint, data, default);
-        Log.Information($"Succesfully created folder {folderCreation.Path ?? string.Empty}/{folderCreation.Name}");
+        Log.Information(
+            "Succesfully created folder {Folder} at {Path}",
+            folder.Name, folder.Directory
+        );
         return response;
     }
 
-    internal async Task<string> UploadFile(FileUploadInfo upload) {
-        // Documentation: https://learn.microsoft.com/en-us/graph/api/driveitem-put-content?view=graph-rest-1.0&tabs=http
-        string endpoint = 
-            $"/sites/{upload.SiteId}/drives/{upload.DriveId}/items/{upload.ParentId}:/{upload.FileName}:/content";
+    internal async Task<bool> FolderExists(FolderInfo folder, string driveId) {
+        string folderPath = SharePointUtils.FormatPath($"{folder.Directory}/{folder.Name}");
+        string endpoint = $"/drives/{driveId}/{folderPath}";
+        return await HttpClient.IsSuccessfulResponse(endpoint, default);
+    }
 
-        byte[] data = File.ReadAllBytes(upload.LocalFilePath);
+    internal async Task<string> UploadFile(FileUploadInfo upload, string driveId, string parentId) {
+        // Documentation: https://learn.microsoft.com/en-us/graph/api/driveitem-put-content?view=graph-rest-1.0&tabs=http
+        string endpoint = $"/drives/{driveId}/items/{parentId}:/{upload.FileName}:/content";
+        string localFilePath = Path.Combine(upload.LocalFileDirectory, upload.FileName);
+        
+        byte[] data = File.ReadAllBytes(localFilePath);
         ByteArrayContent content = new(data);
         return await HttpClient.PutAsync(endpoint, content, default);
     }
 
-    internal async Task DownloadFile(FileDownloadInfo download) {
-        if (File.Exists(download.DestinationPath)) {
-            Log.Information($"File '{download.FileName}' already exists in {download.DestinationFolder}");
-            return;
-        }
+    internal async Task DownloadFile(FileDownloadInfo download, string destinationPath, string driveId, string itemId) {
+        string endpoint = $"/drives/{driveId}/items/{itemId}/content";
 
-        string endpoint = $"/drives/{download.DriveId}/items/{download.ItemId}/content";
         await using Stream downloadStream = await HttpClient.GetStreamAsync(endpoint, default);
-        await using FileStream destinationStream = new(download.DestinationPath, FileMode.Create);
+        await using FileStream destinationStream = new(destinationPath, FileMode.Create);
         await downloadStream.CopyToAsync(destinationStream);
-        Log.Information($"Successfully downloaded {download.DestinationPath}");
+        Log.Information(
+            "Successfully downloaded {FileName} to {DestinationFolder}",
+            download.FileName, download.DestinationFolder
+        );
     }
 }

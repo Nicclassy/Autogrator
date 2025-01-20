@@ -15,6 +15,12 @@ public sealed class GraphHttpClient(HttpClient httpClient) {
     private const string PaginationKey = "@odata.nextLink";
     private static readonly Encoding PostEncoding = Encoding.UTF8;
 
+    internal async Task<bool> IsSuccessfulResponse(string endpoint, CancellationToken cancellationToken) {
+        string requestUri = CreateRequestUri(endpoint);
+        HttpResponseMessage response = await httpClient.GetAsync(requestUri, cancellationToken);
+        return response.IsSuccessStatusCode;
+    }
+
     internal async Task<string> GetKeyAsync(string endpoint, string key, CancellationToken cancellationToken) {
         string content = await GetAsync($"{endpoint}{FormatRequestKeys([key])}", cancellationToken);
         JObject json = JObject.Parse(content);
@@ -44,22 +50,22 @@ public sealed class GraphHttpClient(HttpClient httpClient) {
         return items;
     }
 
-    internal async Task<string> GetAsync(string endpoint, CancellationToken cancellationToken) {
-        string requestUri = CreateRequestUri(endpoint);
-        HttpResponseMessage response = await httpClient.GetAsync(requestUri, cancellationToken);
-        if (!response.IsSuccessStatusCode)
-            LogFailureAndExit("GET", endpoint, response);
-
-        return await response.Content.ReadAsStringAsync(cancellationToken);
-    }
-
     internal async Task<Stream> GetStreamAsync(string endpoint, CancellationToken cancellationToken) {
         string requestUri = CreateRequestUri(endpoint);
         HttpResponseMessage response = await httpClient.GetAsync(requestUri, cancellationToken);
         if (!response.IsSuccessStatusCode)
-            LogFailureAndExit("GET", endpoint, response);
+            LogFailureAndThrow("GET", endpoint, response);
 
         return await response.Content.ReadAsStreamAsync(cancellationToken);
+    }
+
+    internal async Task<string> GetAsync(string endpoint, CancellationToken cancellationToken) {
+        string requestUri = CreateRequestUri(endpoint);
+        HttpResponseMessage response = await httpClient.GetAsync(requestUri, cancellationToken);
+        if (!response.IsSuccessStatusCode)
+            LogFailureAndThrow("GET", endpoint, response);
+
+        return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 
     internal async Task<string> PostAsync(string endpoint, string data, CancellationToken cancellationToken) {
@@ -67,7 +73,7 @@ public sealed class GraphHttpClient(HttpClient httpClient) {
         StringContent content = new(data, PostEncoding, PostMediaType);
         HttpResponseMessage response = await httpClient.PostAsync(requestUri, content, cancellationToken);
         if (!response.IsSuccessStatusCode)
-            LogFailureAndExit("POST", endpoint, response);
+            LogFailureAndThrow("POST", endpoint, response);
 
         return await response.Content.ReadAsStringAsync(cancellationToken);
     }
@@ -81,12 +87,12 @@ public sealed class GraphHttpClient(HttpClient httpClient) {
 
         HttpResponseMessage response = await httpClient.SendAsync(request, cancellationToken);
         if (!response.IsSuccessStatusCode)
-            LogFailureAndExit("PUT", endpoint, response);
+            LogFailureAndThrow("PUT", endpoint, response);
 
         return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 
-    private static void LogFailureAndExit(string method, string endpoint, HttpResponseMessage response) {
+    private static void LogFailureAndThrow(string method, string endpoint, HttpResponseMessage response) {
         string errorMessage = $"Request {method} {endpoint} failed with status code {(int)response.StatusCode}. "
             + $"Reason: {response.ReasonPhrase}";
         Log.Fatal(errorMessage.Colourise(AnsiColours.Red));
