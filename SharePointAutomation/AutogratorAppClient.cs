@@ -9,48 +9,50 @@ namespace Autogrator.SharePointAutomation;
 
 public sealed class AutogratorAppClient(SharePointGraphClient _graphClient) {
     public SharePointGraphClient GraphClient { get; } = _graphClient;
-
-    public async Task CreateFolder(string name, string sitePath, string driveName, string? path = null) {
-        string siteId = await GraphClient.GetSiteId(sitePath);
-        string driveId = await GraphClient.GetDriveId(driveName, sitePath);
-        string folderPath = SharePointUtils.FormatItemPath(path);
-        FolderCreationInfo uploadInfo = new(name, siteId, driveId, folderPath);
+    
+    public async Task CreateFolder(FolderInfo folder) {
+        string siteId = await GraphClient.GetSiteId(folder.SitePath);
+        string driveId = await GraphClient.GetDriveId(folder.DriveName, folder.SitePath);
         
-        string response = await GraphClient.CreateFolder(uploadInfo);
-        Log.Information($"Folder creation responded with response {response}");
+        string response = await GraphClient.CreateFolder(folder, driveId);
+        Log.Information(
+            "Folder creation responded with response {Response}", 
+            response.PrettyJson().Colourise(AnsiColours.Magenta)
+        );
     }
 
-    public async Task UploadFile(
-        string fileName, string localFileDirectory, string uploadFolderPath, 
-        string? sitePath = null, string? driveName = null
-    ) {
-        // TODO: Check if the folder that is being uploaded to exists. If not create it
-        string siteId = await GraphClient.GetSiteId(sitePath);
-        string driveId = await GraphClient.GetDriveId(driveName, sitePath);
-
-        (string parentFolder, string parentName) = uploadFolderPath.RightSplitOnce('/');
-        string parentId = await GraphClient.GetItemId(parentName, parentFolder);
-
-        string localFilePath = Path.Combine(localFileDirectory, fileName);
-        FileUploadInfo uploadInfo = new(
-            fileName, localFileDirectory, localFilePath, 
-            parentId, siteId, driveId
-        );
-
-        string response = await GraphClient.UploadFile(uploadInfo);
-        Log.Information($"File creation responded with response {response}");
+    public async Task<bool> FolderExists(FolderInfo folder) {
+        string siteId = await GraphClient.GetDriveId(folder.DriveName, folder.SitePath);
+        return await GraphClient.FolderExists(folder, siteId);
     }
 
-    public async Task DownloadFile(string fileName, string destinationFolder, string driveName) {
-        string driveId = await GraphClient.GetDriveId(driveName);
-        string itemId = await GraphClient.GetItemId(fileName, driveName: driveName);
+    public async Task UploadFile(FileUploadInfo fileUpload) {
+        string siteId = await GraphClient.GetSiteId(fileUpload.SitePath);
+        string driveId = await GraphClient.GetDriveId(fileUpload.DriveName, fileUpload.SitePath);
 
-        string destinationPath = Path.Combine(destinationFolder, fileName);
-        FileDownloadInfo download = new(
-            fileName, destinationFolder, 
-            destinationPath, driveId, itemId
+        (string parentFolder, string parentName) = fileUpload.UploadDirectory.RightSplitOnce('/');
+        string parentId = await GraphClient.GetItemId(driveId, parentName, parentFolder);
+
+        string response = await GraphClient.UploadFile(fileUpload, driveId, parentId);
+        Log.Information(
+            "File creation responded with response {Response}",
+            response.PrettyJson().Colourise(AnsiColours.Magenta)
         );
-        await GraphClient.DownloadFile(download);
+    }
+
+    public async Task DownloadFile(FileDownloadInfo downloadInfo) {
+        string destinationPath = Path.Combine(downloadInfo.DestinationFolder, downloadInfo.FileName);
+        if (File.Exists(destinationPath)) {
+            Log.Information(
+                "File '{FileName}' already exists in {DestinationFolder}",
+                downloadInfo.FileName, downloadInfo.DestinationFolder
+            );
+            return;
+        }
+
+        string driveId = await GraphClient.GetDriveId(downloadInfo.DriveName, downloadInfo.SitePath);
+        string itemId = await GraphClient.GetItemId(driveId, downloadInfo.FileName, downloadInfo.DownloadPath);
+        await GraphClient.DownloadFile(downloadInfo, destinationPath, driveId, itemId);
     }
 
     public static AutogratorAppClient Create() {

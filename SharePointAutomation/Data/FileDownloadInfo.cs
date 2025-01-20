@@ -1,9 +1,9 @@
 ﻿namespace Autogrator.SharePointAutomation;
 
-public readonly record struct FileDownloadInfo(
+public sealed record FileDownloadInfo(
     string FileName,
     string DestinationFolder,
-    string DestinationPath,
-    string DriveId,
-    string ItemId
+    string? DownloadPath,
+    string DriveName,
+    string SitePath
 );

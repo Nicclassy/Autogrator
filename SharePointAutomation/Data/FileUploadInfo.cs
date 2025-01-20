@@ -1,10 +1,9 @@
 ﻿namespace Autogrator.SharePointAutomation;
 
-public readonly record struct FileUploadInfo(
+public sealed record FileUploadInfo(
     string FileName,
     string LocalFileDirectory,
-    string LocalFilePath,
-    string ParentId,
-    string SiteId,
-    string DriveId
+    string UploadDirectory,
+    string DriveName,
+    string SitePath
 );

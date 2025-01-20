@@ -1,11 +1,6 @@
-﻿using Newtonsoft.Json.Linq;
+﻿namespace Autogrator.SharePointAutomation;
 
-namespace Autogrator.SharePointAutomation;
-
-public struct DriveItemInfo {
-    public string Name { get; set; }
-    public string Id { get; set; }
-
-    public static DriveItemInfo Parse(JToken token) =>
-        token.ToObject<DriveItemInfo>();
+public sealed class DriveItemInfo(string _name, string _id) {
+    public string Name { get; set; } = _name;
+    public string Id { get; set; } = _id;
 }
