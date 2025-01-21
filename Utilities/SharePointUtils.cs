@@ -3,14 +3,10 @@
 namespace Autogrator.Utilities;
 
 public static class SharePointUtils {
-    public static string FormatFilePath(string? filepath) {
-        if (string.IsNullOrWhiteSpace(filepath)) return "root";
+    public static string FormatPath(string? itemPath) {
+        if (string.IsNullOrWhiteSpace(itemPath)) return "root";
 
-        Debug.Assert(filepath[0] == '/', "Path must start with '/'");
-        return $"root:{filepath}:";
-    }
-
-    public static string FormatNameForComparison(string name) {
-        return name;
+        Debug.Assert(itemPath[0] == '/', "Path must start with '/'");
+        return $"root:{itemPath}:";
     }
 }
