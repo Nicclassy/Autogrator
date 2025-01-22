@@ -3,9 +3,11 @@
 using Newtonsoft.Json.Linq;
 using Serilog;
 
+using Autogrator.Data;
 using Autogrator.Extensions;
 using Autogrator.Exceptions;
 using Autogrator.Utilities;
+using System.Text;
 
 namespace Autogrator.SharePointAutomation;
 
@@ -28,9 +30,8 @@ public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
         string itemPath = SharePointUtils.FormatPath(path);
         IEnumerable<DriveItemInfo> driveItems = await GetChildren(itemPath, driveId);
         
-        DriveItemInfo notFound = default;
-        DriveItemInfo result = driveItems.FirstOrDefault(item => item.Name == name, notFound);
-        if (result.Equals(notFound)) {
+        DriveItemInfo? result = driveItems.FirstOrDefault(item => item.Name == name);
+        if (result is not DriveItemInfo { Id: string id }) {
             Log.Fatal(
                 "Item with name '{ItemName}' at path '{ItemPath}' was not found", 
                 name, itemPath
@@ -38,17 +39,16 @@ public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
             throw new AppDataNotFoundException();
         }
 
-        return result.Id;
+        return id;
     }
 
     internal async Task<string> GetSiteId(string sitePath) =>
-        await HttpClient.GetKeyAsync($"/sites/{SharePointSite.Hostname}:{sitePath}", "id", default);
+        await HttpClient.GetKeyAsync($"/sites/{SharePoint.Hostname}:{sitePath}", "id", default);
     
     internal async Task<string> GetDriveId(string driveName, string sitePath) {
         string siteId = await GetSiteId(sitePath);
         string endpoint = $"/sites/{siteId}/drives";
         string content = await HttpClient.GetAsync(endpoint, default);
-        driveName ??= GraphAPI.DefaultDriveName;
 
         JObject root = JObject.Parse(content);
         JToken drives = root["value"]!;
@@ -86,6 +86,37 @@ public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
         return response;
     }
 
+    internal async Task CreateFolderRecursively(FolderInfo folder, string driveId) {
+        if (folder.Directory is not { } directory) {
+            if (!await FolderExists(folder, driveId))
+                await CreateFolder(folder, driveId);
+            return;
+        }
+
+        string[] dirnames = [..directory.TrimStart('/').Split('/'), folder.Name];
+        StringBuilder builder = new();
+        foreach (string dirname in dirnames) {
+            FolderInfo parentFolder = folder with {
+                Name = dirname,
+                Directory = builder.ToString().NullIfWhiteSpace()
+            };
+            
+            if (!await FolderExists(parentFolder, driveId)) {
+                Log.Information(
+                    $"Folder {parentFolder.Directory}/{parentFolder.Name} does not exist. Creating...".Colourise(AnsiColours.BgBrightRed)
+                );
+                await CreateFolder(parentFolder, driveId);
+            } else {
+                Log.Information(
+                    $"Folder {parentFolder.Directory}/{parentFolder.Name} already exists".Colourise(AnsiColours.BgYellow)
+                );
+            }
+
+            builder.Append('/');
+            builder.Append(dirname);
+        }
+    }
+
     internal async Task<bool> FolderExists(FolderInfo folder, string driveId) {
         string folderPath = SharePointUtils.FormatPath($"{folder.Directory}/{folder.Name}");
         string endpoint = $"/drives/{driveId}/{folderPath}";
@@ -110,7 +141,7 @@ public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
         await downloadStream.CopyToAsync(destinationStream);
         Log.Information(
             "Successfully downloaded {FileName} to {DestinationFolder}",
-            download.FileName, download.DestinationFolder
+            Path.GetFileName(destinationPath), download.DestinationFolder
         );
     }
 }
