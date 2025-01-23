@@ -1,11 +1,17 @@
-﻿using Excel = Microsoft.Office.Interop.Excel;
+﻿using System.Collections;
+using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Autogrator.OutlookAutomation;
 
 public sealed class ExcelAllowedSenderList(Dictionary<string, string> folderNamesByAddress) : IAllowedSenderList {
     private const int StartingRowIndex = 2;
+    private const int StartingColumnIndex = 2;
 
-    public ExcelAllowedSenderList() : this(new()) { }
+    public ExcelAllowedSenderList() : this(new(StringComparer.OrdinalIgnoreCase)) { }
+
+    public IEnumerator<string> GetEnumerator() => folderNamesByAddress.Keys.GetEnumerator();
+
+    IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
     public void Load(string filepath) {
         Excel.Application excel = new();
@@ -16,10 +22,10 @@ public sealed class ExcelAllowedSenderList(Dictionary<string, string> folderName
         Excel.Range cell = worksheet.Cells[rowIndex, 1];
         string cellValue = cell.Value;
         while (!string.IsNullOrEmpty(cellValue)) {
-            (string folderName, List<string> emailAddresses) = ParseNonEmptyRowValues(worksheet, rowIndex);
+            (string folderName, List<string> emailAddresses) = ParseNonEmptyRowValues(worksheet, rowIndex++);
             emailAddresses.ForEach(emailAddress => folderNamesByAddress[emailAddress] = folderName);
 
-            cell = worksheet.Cells[rowIndex++, 1];
+            cell = worksheet.Cells[rowIndex, 1];
             cellValue = cell.Value;
         }
     }
@@ -28,9 +34,11 @@ public sealed class ExcelAllowedSenderList(Dictionary<string, string> folderName
 
     public string GetSenderFolder(string emailAddress) => folderNamesByAddress[emailAddress];
 
-    private static (string folderName, List<string> emailAddresses) ParseNonEmptyRowValues(Excel.Worksheet worksheet, int rowIndex) {
+    private static (string folderName, List<string> emailAddresses) ParseNonEmptyRowValues(
+        Excel.Worksheet worksheet, int rowIndex
+    ) {
         List<string> emailAddresses = [];
-        int columnIndex = 1;
+        int columnIndex = StartingColumnIndex;
 
         Excel.Range cell = worksheet.Cells[rowIndex, columnIndex++];
         string cellValue = cell.Value;
