@@ -49,14 +49,17 @@ internal sealed class AuthenticationHandler : DelegatingHandler {
         using HttpClient httpClient = new();
         HttpResponseMessage authResponse = await httpClient.PostAsync(authUrl, data);
         if (!authResponse.IsSuccessStatusCode) {
-            Log.Fatal($"Access token request returned an unsuccessful status code of {authResponse.StatusCode}");
-            throw new AccessTokenRequestFailedException();
+            Log.Fatal("Access token request returned an unsuccessful status code of {StatusCode}", authResponse.StatusCode);
+            throw new AccessTokenRetrievalFailedException();
         }
 
         string content = await authResponse.Content.ReadAsStringAsync();
         JObject json = JObject.Parse(content);
-        string accessToken = json[AccessTokenKey]?.ToString()
-            ?? throw new InvalidDataException("Access token not found");
+        if (json[AccessTokenKey]?.ToString() is not string accessToken) {
+            Log.Fatal("The key '{AccessTokenKey}' was not found in the JSON response", AccessTokenKey);
+            throw new AccessTokenRetrievalFailedException();
+        }
+            
         
         CacheAccessToken(accessToken);
         Log.Information("Token succesfully cached and obtained.");
@@ -71,7 +74,7 @@ internal sealed class AuthenticationHandler : DelegatingHandler {
     private void CacheAccessToken(string accessToken) {
         SecurityToken token = TokenHandler.ReadToken(accessToken)!;
         TimeSpan duration = token.ValidTo - token.ValidFrom;
-        Log.Information($"Token duration is {duration.Minutes} minutes");
+        Log.Information("Token duration is {Minutes} minutes", duration.Minutes);
         memoryCache.Set(AccessTokenKey, accessToken, duration);
     }
 }

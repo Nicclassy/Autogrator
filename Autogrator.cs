@@ -13,7 +13,6 @@ public sealed partial class Autogrator(
     SharePointGraphClient _graphClient,
     EmailReceiver _emailReceiver
 ) {
-    // TODO: Make AllAllowedSendersList
     public required IAllowedSenderList AllowedSenders { get; set; }
     public required EmailFileNameFormatter EmailFileNameFormatter { get; set; }
 
@@ -37,9 +36,8 @@ public sealed partial class Autogrator(
         );
     }
 
-    public async Task CreateFolderRecusively(FolderInfo folder) {
+    public async Task CreateFolderRecursively(FolderInfo folder) {
         string driveId = await GraphClient.GetDriveId(folder.DriveName, folder.SitePath);
-
         await GraphClient.CreateFolderRecursively(folder, driveId);
     }
 
@@ -104,7 +102,7 @@ public sealed partial class Autogrator(
             SitePath = SharePoint.UploadSitePath
         };
 
-        await CreateFolderRecusively(folder);
+        await CreateFolderRecursively(folder);
         await UploadFile(uploadInfo);
     }
 
@@ -136,7 +134,7 @@ public sealed partial class Autogrator(
         while (true) {
             if (EmailReceiver.TryReceiveEmail(out Outlook.MailItem email))
                 await ProcessEmail(email);
-            Thread.Sleep(1000);
+            await Task.Delay(1000);
         }
     }
 }

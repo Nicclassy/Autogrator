@@ -15,7 +15,7 @@ public sealed class GraphHttpClient(HttpClient httpClient) {
     private const string PaginationKey = "@odata.nextLink";
     private static readonly Encoding PostEncoding = Encoding.UTF8;
 
-    internal async Task<bool> IsSuccessfulResponse(string endpoint, CancellationToken cancellationToken) {
+    internal async Task<bool> IsSuccessfulResponseÁsync(string endpoint, CancellationToken cancellationToken) {
         string requestUri = CreateRequestUri(endpoint);
         HttpResponseMessage response = await httpClient.GetAsync(requestUri, cancellationToken);
         return response.IsSuccessStatusCode;

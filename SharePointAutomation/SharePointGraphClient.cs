@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Text;
+using System.Text.Json;
 
 using Newtonsoft.Json.Linq;
 using Serilog;
@@ -7,18 +8,17 @@ using Autogrator.Data;
 using Autogrator.Extensions;
 using Autogrator.Exceptions;
 using Autogrator.Utilities;
-using System.Text;
 
 namespace Autogrator.SharePointAutomation;
 
-public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
+public sealed class SharePointGraphClient(GraphHttpClient _httpClient) {
     private static readonly JsonSerializerOptions SerializerOptions = new() {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
         PropertyNameCaseInsensitive = true
     };
 
-    internal GraphHttpClient HttpClient { get; } = httpClient;
+    internal GraphHttpClient HttpClient { get; } = _httpClient;
 
     internal async Task<IEnumerable<DriveItemInfo>> GetChildren(string fullpath, string driveId) {
         List<DriveItemInfo> items = await HttpClient
@@ -120,11 +120,10 @@ public sealed class SharePointGraphClient(GraphHttpClient httpClient) {
     internal async Task<bool> FolderExists(FolderInfo folder, string driveId) {
         string folderPath = SharePointUtils.FormatPath($"{folder.Directory}/{folder.Name}");
         string endpoint = $"/drives/{driveId}/{folderPath}";
-        return await HttpClient.IsSuccessfulResponse(endpoint, default);
+        return await HttpClient.IsSuccessfulResponseÁsync(endpoint, default);
     }
 
     internal async Task<string> UploadFile(FileUploadInfo upload, string driveId, string parentId) {
-        // Documentation: https://learn.microsoft.com/en-us/graph/api/driveitem-put-content?view=graph-rest-1.0&tabs=http
         string endpoint = $"/drives/{driveId}/items/{parentId}:/{upload.FileName}:/content";
         string localFilePath = Path.Combine(upload.LocalFileDirectory, upload.FileName);
         
