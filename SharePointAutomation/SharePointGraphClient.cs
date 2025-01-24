@@ -20,15 +20,15 @@ public sealed class SharePointGraphClient(GraphHttpClient _httpClient) {
 
     internal GraphHttpClient HttpClient { get; } = _httpClient;
 
-    internal async Task<IEnumerable<DriveItemInfo>> GetChildren(string fullpath, string driveId) {
+    internal async Task<IEnumerable<DriveItemInfo>> GetChildrenAsync(string fullpath, string driveId) {
         List<DriveItemInfo> items = await HttpClient
             .GetPaginatedAsync<DriveItemInfo>($"/drives/{driveId}/{fullpath}/children", default, "name", "id");
         return items;
     }
 
-    internal async Task<string> GetItemId(string driveId, string name, string? path = null) {
+    internal async Task<string> GetItemIdAsync(string driveId, string name, string? path = null) {
         string itemPath = SharePointUtils.FormatPath(path);
-        IEnumerable<DriveItemInfo> driveItems = await GetChildren(itemPath, driveId);
+        IEnumerable<DriveItemInfo> driveItems = await GetChildrenAsync(itemPath, driveId);
         
         DriveItemInfo? result = driveItems.FirstOrDefault(item => item.Name == name);
         if (result is not DriveItemInfo { Id: string id }) {
@@ -42,11 +42,11 @@ public sealed class SharePointGraphClient(GraphHttpClient _httpClient) {
         return id;
     }
 
-    internal async Task<string> GetSiteId(string sitePath) =>
+    internal async Task<string> GetSiteIdAsync(string sitePath) =>
         await HttpClient.GetKeyAsync($"/sites/{SharePoint.Hostname}:{sitePath}", "id", default);
     
-    internal async Task<string> GetDriveId(string driveName, string sitePath) {
-        string siteId = await GetSiteId(sitePath);
+    internal async Task<string> GetDriveIdAsync(string driveName, string sitePath) {
+        string siteId = await GetSiteIdAsync(sitePath);
         string endpoint = $"/sites/{siteId}/drives";
         string content = await HttpClient.GetAsync(endpoint, default);
 
@@ -67,7 +67,7 @@ public sealed class SharePointGraphClient(GraphHttpClient _httpClient) {
         return id;
     }
 
-    internal async Task<string> CreateFolder(FolderInfo folder, string driveId) {
+    internal async Task<string> CreateFolderAsync(FolderInfo folder, string driveId) {
         string folderPath = SharePointUtils.FormatPath(folder.Directory);
         string endpoint = $"/drives/{driveId}/{folderPath}/children";
 
@@ -86,10 +86,10 @@ public sealed class SharePointGraphClient(GraphHttpClient _httpClient) {
         return response;
     }
 
-    internal async Task CreateFolderRecursively(FolderInfo folder, string driveId) {
+    internal async Task CreateFolderRecursivelyAsync(FolderInfo folder, string driveId) {
         if (folder.Directory is not { } directory) {
-            if (!await FolderExists(folder, driveId))
-                await CreateFolder(folder, driveId);
+            if (!await FolderExistsAsync(folder, driveId))
+                await CreateFolderAsync(folder, driveId);
             return;
         }
 
@@ -101,11 +101,11 @@ public sealed class SharePointGraphClient(GraphHttpClient _httpClient) {
                 Directory = builder.ToString().NullIfWhiteSpace()
             };
             
-            if (!await FolderExists(parentFolder, driveId)) {
+            if (!await FolderExistsAsync(parentFolder, driveId)) {
                 Log.Information(
                     $"Folder {parentFolder.Directory}/{parentFolder.Name} does not exist. Creating...".Colourise(AnsiColours.BgBrightRed)
                 );
-                await CreateFolder(parentFolder, driveId);
+                await CreateFolderAsync(parentFolder, driveId);
             } else {
                 Log.Information(
                     $"Folder {parentFolder.Directory}/{parentFolder.Name} already exists".Colourise(AnsiColours.BgYellow)
@@ -117,13 +117,13 @@ public sealed class SharePointGraphClient(GraphHttpClient _httpClient) {
         }
     }
 
-    internal async Task<bool> FolderExists(FolderInfo folder, string driveId) {
+    internal async Task<bool> FolderExistsAsync(FolderInfo folder, string driveId) {
         string folderPath = SharePointUtils.FormatPath($"{folder.Directory}/{folder.Name}");
         string endpoint = $"/drives/{driveId}/{folderPath}";
         return await HttpClient.IsSuccessfulResponseÁsync(endpoint, default);
     }
 
-    internal async Task<string> UploadFile(FileUploadInfo upload, string driveId, string parentId) {
+    internal async Task<string> UploadFileAsync(FileUploadInfo upload, string driveId, string parentId) {
         string endpoint = $"/drives/{driveId}/items/{parentId}:/{upload.FileName}:/content";
         string localFilePath = Path.Combine(upload.LocalFileDirectory, upload.FileName);
         
@@ -132,7 +132,7 @@ public sealed class SharePointGraphClient(GraphHttpClient _httpClient) {
         return await HttpClient.PutAsync(endpoint, content, default);
     }
 
-    internal async Task DownloadFile(FileDownloadInfo download, string destinationPath, string driveId, string itemId) {
+    internal async Task DownloadFileAsync(FileDownloadInfo download, string destinationPath, string driveId, string itemId) {
         string endpoint = $"/drives/{driveId}/items/{itemId}/content";
 
         await using Stream downloadStream = await HttpClient.GetStreamAsync(endpoint, default);

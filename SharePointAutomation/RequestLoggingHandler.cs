@@ -4,13 +4,9 @@ using Autogrator.Utilities;
 
 namespace Autogrator.SharePointAutomation;
 
-public sealed class RequestLoggingHandler : DelegatingHandler {
+public sealed class RequestLoggingHandler(ILogger<RequestLoggingHandler> logger) : DelegatingHandler(new HttpClientHandler()) {
     private const bool LoggingEnabled = true;
 
-    private readonly ILogger<RequestLoggingHandler> logger;
-
-    public RequestLoggingHandler(ILogger<RequestLoggingHandler> logger) : base(new HttpClientHandler()) => this.logger = logger;
-    
     protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
         if (LoggingEnabled) {
             string requestColour = RequestColour(request.Method);

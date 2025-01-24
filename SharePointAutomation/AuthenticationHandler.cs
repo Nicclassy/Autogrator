@@ -26,12 +26,12 @@ internal sealed class AuthenticationHandler : DelegatingHandler {
         : base(new HttpClientHandler()) => this.memoryCache = memoryCache;
 
     protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) {
-        string accessToken = await GetAccessToken();
+        string accessToken = await GetAccessTokenAsync();
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
         return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<string> GetAccessToken() {
+    private async Task<string> GetAccessTokenAsync() {
         if (GetCachedAccessToken() is string cachedToken) {
             Log.Information("Access token was found in the cache.");
             return cachedToken;
