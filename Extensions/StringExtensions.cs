@@ -14,4 +14,10 @@ public static class StringExtensions {
 
     public static string? NullIfWhiteSpace(this string value) =>
         string.IsNullOrWhiteSpace(value) ? null : value;
+
+    public static string FileNameWithSuffix(this string value, string suffix) {
+        string filename = Path.GetFileNameWithoutExtension(value);
+        string extension = Path.GetExtension(filename);
+        return $"{filename}{suffix}.{extension}";
+    } 
 }

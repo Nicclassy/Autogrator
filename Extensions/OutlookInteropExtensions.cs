@@ -9,8 +9,8 @@ public static class OutlookInteropExtensions {
     public static IEnumerable<Outlook.MailItem> EmailsByLatest(this Outlook.MAPIFolder folder) =>
         folder.Items.OfType<Outlook.MailItem>().OrderBy(item => item.ReceivedTime).Reverse();
 
-    public static Outlook.MailItem? LatestEmail(this Outlook.MAPIFolder folder) =>
-        folder.EmailsByLatest().FirstOrDefault();
+    public static Outlook.MailItem? LatestEmail(this Outlook.MAPIFolder folder, Func<Outlook.MailItem, bool>? predicate = null) =>
+        folder.EmailsByLatest().FirstOrDefault(predicate ?? (_ => true));
 
     public static string ExportFileName(this Outlook.MailItem mailItem) =>
         mailItem.EntryID.ToString();

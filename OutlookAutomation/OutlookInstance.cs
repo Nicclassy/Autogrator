@@ -10,11 +10,17 @@ public static class OutlookInstance {
     public static Outlook.NameSpace NameSpace { get; } = Application.GetNamespace("MAPI");
     public static bool IsAuthenticated { get; private set; } = false;
 
+    private const bool UseAltLogin = true;
+
     public static Outlook.MAPIFolder Inbox =>
         NameSpace.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderInbox);
 
-    private static string Email => Credentials.Outlook.Email;
-    private static string Password => Credentials.Outlook.Password;
+    private static string Email => 
+        UseAltLogin? Credentials.Outlook.AltEmail : Credentials.Outlook.Email;
+    private static string Password => 
+        UseAltLogin ? Credentials.Outlook.AltPassword : Credentials.Outlook.Password;
+
+    static OutlookInstance() => Login();
 
     public static void Login() {
         if (IsAuthenticated)
@@ -24,8 +30,8 @@ public static class OutlookInstance {
         Log.Information("Logging in with email {Email}", Email);
         try {
             LoginWithOptions(showDialog: false, newSession: true);
-        } catch (System.Runtime.InteropServices.COMException ex) {
-            Log.Error(ex, "Initial login attempt failed. Retrying with dialog...");
+        } catch (System.Runtime.InteropServices.COMException) {
+            Log.Warning("Initial login attempt failed. Retrying with dialog...");
             retry = true;
         }
 

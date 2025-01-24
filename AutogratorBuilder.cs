@@ -41,9 +41,7 @@ public partial class Autogrator {
             HttpClient httpClient = new(authenticationHandler);
             GraphHttpClient graphHttpClient = new(httpClient);
             SharePointGraphClient graphClient = new(graphHttpClient);
-
-            OutlookAuthenticator authenticator = new();
-            EmailReceiver receiver = new(authenticator);
+            EmailReceiver receiver = new();
 
             return new(graphClient, receiver) {
                 AllowedSenders = _allowedSenders ?? DefaultAllowedSenders,

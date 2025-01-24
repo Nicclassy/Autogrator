@@ -81,7 +81,7 @@ public sealed partial class Autogrator(
     public async Task ProcessEmail(Outlook.MailItem email) {
         EmailExporter.SaveAndExportEmail(
             email, 
-            out EmailInfo emailInfo,
+            out EmailExportInfo emailInfo,
             fileNameFormatter: EmailFileNameFormatter
         );
 
