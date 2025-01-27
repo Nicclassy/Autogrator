@@ -13,8 +13,23 @@ namespace Autogrator.Notifications;
 public static partial class EmailExceptionNotifier {
     public const string LogFileName = "log.txt";
 
+    private const int ExceptionThrowerFrameIndex = 4;
+
     [GeneratedRegex(@"\d+")]
     private static partial Regex TimeStampPattern();
+
+    public static UnhandledExceptionEventHandler EventHandler() =>
+        (_, e) => {
+            DateTime now = DateTime.Now;
+            StackTraceInfo stackTraceInfo = StackTraceInfo.OfFrameIndex(ExceptionThrowerFrameIndex);
+            ExceptionInfo exceptionInfo = ExceptionInfo.Create((Exception) e.ExceptionObject, now);
+            string emailContent = File.ReadAllText(NotificationEmail.ContentPath);
+            Log.Fatal(
+                "Application crashed at {TimeStamp} in {FileName} in {Method} on line {LineNumber}. Sending an email...",
+                now.ToString("t"), stackTraceInfo.FileName, stackTraceInfo.Method, stackTraceInfo.LineNumber
+            );
+            SendEmail(exceptionInfo, stackTraceInfo, emailContent);
+        };
 
     internal static string LatestLogFilePath(string directory = ".") {
         string latestFileName = Directory
