@@ -3,7 +3,7 @@ using AngleSharp.Dom;
 
 namespace Autogrator.Notifications;
 
-public sealed class HTMLBodyEditor {
+public readonly struct HTMLBodyEditor {
     private readonly IDocument document;
 
     public HTMLBodyEditor(string body) {
@@ -12,17 +12,17 @@ public sealed class HTMLBodyEditor {
         this.document = context.OpenAsync(request => request.Content(body)).Result;
     }
 
-    public void AddText(string text) {
+    public void PrependText(string text) {
         IElement body = document.QuerySelector("body")!;
         IElement div = body.QuerySelector("div")!;
-        IElement firstElement = div.FirstElementChild;
+        IElement firstElement = div.FirstElementChild!;
 
         IElement parent = document.CreateElement("p");
         parent.ClassName = "MsoNormal";
         firstElement.InsertBefore(parent);
 
         IElement textElement = document.CreateElement("o:p");
-        textElement.TextContent = text;
+        textElement.InnerHtml = text.TrimEnd().Replace("\n", "<br>");
         parent.AppendChild(textElement);
     }
 

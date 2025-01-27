@@ -3,9 +3,9 @@
 namespace Autogrator.Notifications;
 
 public sealed record StackTraceInfo(string Method, string FileName, int LineNumber) {
-    public static StackTraceInfo OfIndex(int index) {
+    public static StackTraceInfo OfFrameIndex(int frameIndex) {
         StackTrace stackTrace = new(fNeedFileInfo: true);
-        StackFrame frame = stackTrace.GetFrame(index)!;
+        StackFrame frame = stackTrace.GetFrame(frameIndex)!;
 
         string method = frame.GetMethod()!.Name;
         string filename = Path.GetFileName(frame.GetFileName())!;
