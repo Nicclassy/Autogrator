@@ -14,6 +14,7 @@ public static partial class EmailExceptionNotifier {
     public const string LogFileName = "log.txt";
 
     private const int ExceptionThrowerFrameIndex = 4;
+    private readonly static bool ReviewSentEmails = true;
 
     [GeneratedRegex(@"\d+")]
     private static partial Regex TimeStampPattern();
@@ -75,12 +76,21 @@ public static partial class EmailExceptionNotifier {
         string formattedText = Smart.Format(emailContent, formatArgs);
         bodyEditor.PrependText(formattedText);
 
-        email.Subject = $"Autogrator crashed at {exceptionInfo.TimeStamp("hh:mm tt")}";
+        email.Subject = $"Autogrator crashed at {exceptionInfo.TimeStamp("t")}";
         email.SendUsingAccount = account;
         email.To = NotificationEmail.RecipientEmailAddress;
         email.Importance = Outlook.OlImportance.olImportanceHigh;
         email.HTMLBody = bodyEditor.Content();
-        //email.Display();
-        //Console.WriteLine(email.HTMLBody);
+        email.Attachments.Add(
+            LatestLogFilePath(), Outlook.OlAttachmentType.olByValue, 
+            Type.Missing, Type.Missing
+        );
+        
+        if (ReviewSentEmails) {
+            email.Display();
+            Console.WriteLine(email.HTMLBody);
+        } else {
+            email.Send();
+        }
     }
 }
