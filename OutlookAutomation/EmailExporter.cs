@@ -36,7 +36,7 @@ public static class EmailExporter {
             return;
 
         Cleanup(emailInfo);
-        Log.Information("Successfully exported email to {Path}.", emailInfo.FilePath);
+        Log.Information("Successfully exported email to {Path}", emailInfo.FilePath);
     }
 
     public static void SaveEmail(

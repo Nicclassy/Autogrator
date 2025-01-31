@@ -18,10 +18,9 @@ public static class SharePoint {
 
 public static class Credentials {
     public static class Outlook {
-        public static readonly string Email = "AG_OUTLOOK_EMAIL".EnvVariable(allowEmpty: true);
+        public static readonly string Profile = "AG_OUTLOOK_PROFILE".EnvVariable(allowEmpty: true);
+        public static readonly string Email = "AG_OUTLOOK_PROFILE".EnvVariable(allowEmpty: true);
         public static readonly string Password = "AG_OUTLOOK_PASSWORD".EnvVariable(allowEmpty: true);
-        public static readonly string AltEmail = "AG_ALT_OUTLOOK_EMAIL".EnvVariable(allowEmpty: true);
-        public static readonly string AltPassword = "AG_ALT_OUTLOOK_PASSWORD".EnvVariable(allowEmpty: true);
     }
 }
 
@@ -37,10 +36,11 @@ public static class AutogratorApplication {
     public static readonly string ClientID = "AG_APPLICATION_CLIENT_ID".EnvVariable();
     public static readonly string TenantID = "AG_APPLICATION_TENANT_ID".EnvVariable();
     public static readonly string ClientSecret = "AG_APPLICATION_CLIENT_SECRET".EnvVariable();
-    public static readonly string Scope = "AG_APPLICATION_SCOPE".EnvVariable();
+    public static readonly string Scope = "https://graph.microsoft.com/.default";
 }
 
 public static class NotificationEmail {
     public static readonly string SenderEmailAddress = "AG_NOTIFICATION_EMAIL_SENDER_ADDRESS".EnvVariable();
     public static readonly string RecipientEmailAddress = "AG_NOTIFICATION_EMAIL_RECIPIENT_ADDRESS".EnvVariable();
+    public static readonly string ContentPath = "AG_EMAIL_CONTENT_PATH".EnvVariable();
 }

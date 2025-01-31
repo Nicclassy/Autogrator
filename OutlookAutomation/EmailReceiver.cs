@@ -16,7 +16,7 @@ public sealed class EmailReceiver {
             return allowedSenders.IsAllowed(email.SenderEmailAddress);
         }
 
-        OutlookInstance.Application.NewMailEx += delegate(string entryID) {
+        OutlookInstance.Application.NewMailEx += delegate (string entryID) {
             Outlook.MailItem email = OutlookInstance.NameSpace.GetItemFromID(entryID);
             if (SenderIsAllowed(email)) {
                 emailsTodo.Enqueue(email);

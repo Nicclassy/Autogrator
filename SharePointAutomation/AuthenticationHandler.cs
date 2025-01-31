@@ -1,6 +1,5 @@
 ﻿using System.Net.Http.Headers;
 using System.Text;
-using System.Text.Json;
 using System.IdentityModel.Tokens.Jwt;
 
 using Microsoft.Extensions.Caching.Memory;
@@ -14,6 +13,7 @@ using Newtonsoft.Json.Linq;
 namespace Autogrator.SharePointAutomation;
 
 internal sealed class AuthenticationHandler : DelegatingHandler {
+    // TODO: Check if JWT Token has appropriate permissions
     private const string UrlFormat = "https://login.microsoftonline.com/{0}/oauth2/v2.0/token";
     private const string ContentFormat = "grant_type=client_credentials&client_id={0}&client_secret={1}&scope={2}";
     private const string MediaType = "application/x-www-form-urlencoded";
@@ -31,7 +31,7 @@ internal sealed class AuthenticationHandler : DelegatingHandler {
         return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    private async Task<string> GetAccessTokenAsync() {
+    internal async Task<string> GetAccessTokenAsync() {
         if (GetCachedAccessToken() is string cachedToken) {
             Log.Information("Access token was found in the cache.");
             return cachedToken;
@@ -74,7 +74,7 @@ internal sealed class AuthenticationHandler : DelegatingHandler {
     private void CacheAccessToken(string accessToken) {
         SecurityToken token = TokenHandler.ReadToken(accessToken)!;
         TimeSpan duration = token.ValidTo - token.ValidFrom;
-        Log.Information("Token duration is {Minutes} minutes", duration.Minutes);
+        Log.Information("Cachked token duration is {Minutes} minutes", duration.Minutes);
         memoryCache.Set(AccessTokenKey, accessToken, duration);
     }
 }

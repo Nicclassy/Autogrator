@@ -2,6 +2,8 @@
 using System.Text.Json;
 using System.Diagnostics;
 
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using Serilog;
 
@@ -9,8 +11,6 @@ using Autogrator.Data;
 using Autogrator.Extensions;
 using Autogrator.Exceptions;
 using Autogrator.Utilities;
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Logging;
 
 namespace Autogrator.SharePointAutomation;
 

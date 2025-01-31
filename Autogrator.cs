@@ -1,6 +1,5 @@
 ﻿using Outlook = Microsoft.Office.Interop.Outlook;
 using Serilog;
-using Serilog.Sinks.SystemConsole.Themes;
 
 using Autogrator.Extensions;
 using Autogrator.Utilities;
@@ -11,51 +10,29 @@ using Autogrator.Notifications;
 
 namespace Autogrator;
 
-public sealed partial class Autogrator(
-    SharePointGraphClient _graphClient,
-    EmailReceiver _emailReceiver
-) {
+public sealed partial class Autogrator(SharePointClient _client, EmailReceiver _emailReceiver) {
     public required IAllowedSenderList AllowedSenders { get; set; }
     public required EmailFileNameFormatter EmailFileNameFormatter { get; set; }
     public required AutogratorOptions Options {
         get => field;
-        set {
+        init {
             if (value.UseDefaultLoggingConfiguration)
                 SetDefaultLoggingConfiguration();
             field = value;
         }
     }
 
-    internal SharePointGraphClient GraphClient { get; } = _graphClient;
+    internal SharePointClient Client { get; } = _client;
     internal EmailReceiver EmailReceiver { get; } = _emailReceiver;
 
     public sealed partial class Builder;
 
-    private static void SetDefaultLoggingConfiguration() {
-        Dictionary<ConsoleThemeStyle, string> styles = new() {
-            { ConsoleThemeStyle.LevelWarning, "\u001b[38;5;214m" },
-            { ConsoleThemeStyle.LevelError, "\u001b[38;5;196m" },
-            { ConsoleThemeStyle.LevelFatal, "\u001b[38;5;161m" },
-            { ConsoleThemeStyle.LevelDebug, "\u001b[38;5;249m" },
-            { ConsoleThemeStyle.LevelVerbose, "\u001b[38;5;245m" }
-        };
-        AnsiConsoleTheme theme = new(styles);
-
-        Log.Logger = new LoggerConfiguration()
-            .WriteTo.Console(theme: theme)
-            .WriteTo.File(
-                new StylelessTextFormatter(), 
-                EmailExceptionNotifier.LogFileName, 
-                rollingInterval: RollingInterval.Day
-            )
-            .CreateLogger();
-        Log.Information("Begin logging");
-    }
-
+    private static partial void SetDefaultLoggingConfiguration();
+      
     public async Task CreateFolderAsync(FolderInfo folder) {
-        string driveId = await GraphClient.GetDriveIdAsync(folder.DriveName, folder.SitePath);
+        string driveId = await Client.GetDriveIdAsync(folder.DriveName, folder.SitePath);
 
-        string response = await GraphClient.CreateFolderAsync(folder, driveId);
+        string response = await Client.CreateFolderAsync(folder, driveId);
         Log.Information(
             "Folder creation responded with response {Response}",
             response.PrettyJson().Colourise(AnsiColours.Magenta)
@@ -63,22 +40,22 @@ public sealed partial class Autogrator(
     }
 
     public async Task CreateFolderRecursivelyAsync(FolderInfo folder) {
-        string driveId = await GraphClient.GetDriveIdAsync(folder.DriveName, folder.SitePath);
-        await GraphClient.CreateFolderRecursivelyAsync(folder, driveId);
+        string driveId = await Client.GetDriveIdAsync(folder.DriveName, folder.SitePath);
+        await Client.CreateFolderRecursivelyAsync(folder, driveId);
     }
 
     public async Task<bool> FolderExistsAsync(FolderInfo folder) {
-        string siteId = await GraphClient.GetDriveIdAsync(folder.DriveName, folder.SitePath);
-        return await GraphClient.FolderExistsAsync(folder, siteId);
+        string siteId = await Client.GetDriveIdAsync(folder.DriveName, folder.SitePath);
+        return await Client.FolderExistsAsync(folder, siteId);
     }
 
     public async Task UploadFileAsync(FileUploadInfo fileUpload) {
-        string driveId = await GraphClient.GetDriveIdAsync(fileUpload.DriveName, fileUpload.SitePath);
+        string driveId = await Client.GetDriveIdAsync(fileUpload.DriveName, fileUpload.SitePath);
 
         (string parentFolder, string parentName) = fileUpload.UploadDirectory.RightSplitOnce('/');
-        string parentId = await GraphClient.GetItemIdAsync(driveId, parentName, parentFolder);
+        string parentId = await Client.GetItemIdAsync(driveId, parentName, parentFolder);
 
-        string response = await GraphClient.UploadFileAsync(fileUpload, driveId, parentId);
+        string response = await Client.UploadFileAsync(fileUpload, driveId, parentId);
         Log.Information(
             "File creation responded with response {Response}",
             response.PrettyJson().Colourise(AnsiColours.Magenta)
@@ -98,9 +75,11 @@ public sealed partial class Autogrator(
             return destinationPath;
         }
 
-        string driveId = await GraphClient.GetDriveIdAsync(downloadInfo.DriveName, downloadInfo.SitePath);
-        string itemId = await GraphClient.GetItemIdAsync(driveId, downloadInfo.FileName, downloadInfo.DownloadPath);
-        await GraphClient.DownloadFileAsync(downloadInfo, destinationPath, driveId, itemId);
+        string driveId = 
+            await Client.GetDriveIdAsync(downloadInfo.DriveName, downloadInfo.SitePath);
+        string itemId = 
+            await Client.GetItemIdAsync(driveId, downloadInfo.FileName, downloadInfo.DownloadPath);
+        await Client.DownloadFileAsync(downloadInfo, destinationPath, driveId, itemId);
         return destinationPath;
     }
 
@@ -133,9 +112,11 @@ public sealed partial class Autogrator(
     }
 
     public async Task Run() {
+        string destinationFileName =
+            AllowedSendersFile.Name.FileNameWithSuffix(Options.CopiedFileSuffix);
         FileDownloadInfo download = new() {
             FileName = AllowedSendersFile.Name,
-            DestinationFileName = AllowedSendersFile.Name.FileNameWithSuffix(Options.CopiedFileSuffix),
+            DestinationFileName = destinationFileName,
             DestinationFolder = AllowedSendersFile.DownloadDestination,
             DriveName = AllowedSendersFile.DriveName,
             SitePath = AllowedSendersFile.SitePath
@@ -143,8 +124,8 @@ public sealed partial class Autogrator(
 
         string downloadedFilePath = await DownloadFileAsync(download);
         AllowedSenders.Load(downloadedFilePath);
-        AllowedSenders.Print();
 
+        AppDomain.CurrentDomain.UnhandledException += EmailExceptionNotifier.EventHandler();
         EmailReceiver.Listen(AllowedSenders);
 
         while (true) {
