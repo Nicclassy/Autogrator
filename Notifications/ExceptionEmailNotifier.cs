@@ -7,14 +7,15 @@ using Serilog;
 
 using Autogrator.Utilities;
 using Autogrator.OutlookAutomation;
+using Autogrator.Extensions;
 
 namespace Autogrator.Notifications;
 
 public static partial class EmailExceptionNotifier {
     public const string LogFileName = "log.txt";
 
-    private const int ExceptionThrowerFrameIndex = 4;
-    private readonly static bool ReviewSentEmails = true;
+    private const int ExceptionThrowerFrameIndex = 7;
+    private static readonly bool ReviewSentEmails = true;
 
     [GeneratedRegex(@"\d+")]
     private static partial Regex TimeStampPattern();
@@ -22,30 +23,38 @@ public static partial class EmailExceptionNotifier {
     public static UnhandledExceptionEventHandler EventHandler() =>
         (_, e) => {
             DateTime now = DateTime.Now;
+            Exception ex = (Exception) e.ExceptionObject;
+
             StackTraceInfo stackTraceInfo = StackTraceInfo.OfFrameIndex(ExceptionThrowerFrameIndex);
-            ExceptionInfo exceptionInfo = ExceptionInfo.Create((Exception) e.ExceptionObject, now);
+            ExceptionInfo exceptionInfo = ExceptionInfo.Create(ex, now);
             string emailContent = File.ReadAllText(NotificationEmail.ContentPath);
-            Log.Fatal(
-                "Application crashed at {TimeStamp} in {FileName} in {Method} on line {LineNumber}. Sending an email...",
+
+            Log.Error(
+                "Application crashed at {TimeStamp} in {FileName} in {Method} on line {LineNumber}",
                 now.ToString("t"), stackTraceInfo.FileName, stackTraceInfo.Method, stackTraceInfo.LineNumber
             );
+            Log.CloseAndFlush();
+
             SendEmail(exceptionInfo, stackTraceInfo, emailContent);
         };
 
     internal static string LatestLogFilePath(string directory = ".") {
-        string latestFileName = Directory
+        const string SerilogFileFormat = "yyyyMMdd";
+
+        string filename = Directory
             .EnumerateFiles(directory)
             .Select(path => Path.GetFileName(path))
             .Where(filename => TimeStampPattern().IsMatch(filename))
             .Select(filename => {
                 string match = TimeStampPattern().Match(filename).Value;
-                DateTime timestamp = DateTime.ParseExact(match, "yyyyMMdd", CultureInfo.InvariantCulture);
+                DateTime timestamp = DateTime.ParseExact(match, SerilogFileFormat, CultureInfo.InvariantCulture);
                 return (filename, timestamp);
             })
             .OrderByDescending(pair => pair.timestamp)
             .First()
             .filename;
-        return Path.Combine(directory, latestFileName);
+
+        return Path.Combine(Path.GetFullPath(directory), filename);
     }
 
     internal static void SendEmail(
@@ -63,7 +72,7 @@ public static partial class EmailExceptionNotifier {
             .First(account => account.SmtpAddress == NotificationEmail.SenderEmailAddress);
         Outlook.MailItem email = 
             (Outlook.MailItem) application.CreateItem(Outlook.OlItemType.olMailItem);
-        Outlook.Inspector inspector = email.GetInspector;
+        Outlook.Inspector _ = email.GetInspector;
 
         HTMLBodyEditor bodyEditor = new(email.HTMLBody);
         var formatArgs = new {
@@ -87,9 +96,10 @@ public static partial class EmailExceptionNotifier {
         );
         
         if (ReviewSentEmails) {
+            Log.Information("Displaying email content");
             email.Display();
-            Console.WriteLine(email.HTMLBody);
         } else {
+            Log.Information("Sending email");
             email.Send();
         }
     }

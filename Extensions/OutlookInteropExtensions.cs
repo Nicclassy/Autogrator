@@ -12,6 +12,6 @@ public static class OutlookInteropExtensions {
     public static Outlook.MailItem? LatestEmail(this Outlook.MAPIFolder folder, Func<Outlook.MailItem, bool>? predicate = null) =>
         folder.EmailsByLatest().FirstOrDefault(predicate ?? (_ => true));
 
-    public static string ExportFileName(this Outlook.MailItem mailItem) =>
-        mailItem.EntryID.ToString();
+    public static Outlook.MAPIFolder? GetSubFolder(this Outlook.Folders folders, string name) =>
+        folders.OfType<Outlook.MAPIFolder>().FirstOrDefault(folder => folder.Name == name);
 }

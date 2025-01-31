@@ -9,7 +9,7 @@ public readonly struct HTMLBodyEditor {
     public HTMLBodyEditor(string body) {
         IConfiguration config = Configuration.Default.WithDefaultLoader();
         IBrowsingContext context = new BrowsingContext(config);
-        this.document = context.OpenAsync(request => request.Content(body)).Result;
+        document = context.OpenAsync(request => request.Content(body)).GetAwaiter().GetResult();
     }
 
     public void PrependText(string text) {
