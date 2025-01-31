@@ -39,7 +39,6 @@ public sealed class SharePointClient(GraphHttpClient _httpClient) {
         GraphHttpClient graphHttpClient = new(httpClient);
         return new(graphHttpClient);
     }
-
     internal GraphHttpClient HttpClient { get; } = _httpClient;
 
     internal async Task<IEnumerable<DriveItemInfo>> GetChildrenAsync(string fullpath, string driveId) {

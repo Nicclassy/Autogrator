@@ -31,7 +31,6 @@ public partial class Autogrator {
             .MinimumLevel.Debug()
             .WriteTo.Console(theme: theme)
             .WriteTo.File(
-                new StylelessTextFormatter(),
                 EmailExceptionNotifier.LogFileName,
                 rollingInterval: RollingInterval.Day,
                 restrictedToMinimumLevel: LogEventLevel.Debug

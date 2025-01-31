@@ -1,7 +1,5 @@
 ﻿using System.Globalization;
 
-using Microsoft.Extensions.Caching.Memory;
-using Microsoft.Extensions.Logging;
 using Outlook = Microsoft.Office.Interop.Outlook;
 
 using Autogrator.OutlookAutomation;
@@ -11,14 +9,9 @@ namespace Autogrator;
 
 public partial class Autogrator {
     public partial class Builder {
-        private ILogger<RequestLoggingHandler>? _requestLogger;
         private IAllowedSenderList? _allowedSenders;
         private EmailFileNameFormatter? _emailFileNameFormatter;
-
-        public Builder WithRequestLogger(ILogger<RequestLoggingHandler> requestLogger) {
-            _requestLogger = requestLogger;
-            return this;
-        }
+        private AutogratorOptions? _options;
 
         public Builder WithAllowedSenders(IAllowedSenderList allowedSenders) {
             _allowedSenders = allowedSenders;
@@ -30,30 +23,24 @@ public partial class Autogrator {
             return this;
         }
 
-        public Autogrator Build() {
-            // TODO: Consider moving some of this logic to SharePointGraphClient
-            IMemoryCache memoryCache = new MemoryCache(new MemoryCacheOptions());
-            RequestLoggingHandler loggingHandler = new(_requestLogger ?? DefaultRequestLogger);
-            AuthenticationHandler authenticationHandler = new(memoryCache) {
-                InnerHandler = loggingHandler
-            };
+        public Builder WithOptions(AutogratorOptions options) {
+            _options = options;
+            return this;
+        }
 
-            HttpClient httpClient = new(authenticationHandler);
-            GraphHttpClient graphHttpClient = new(httpClient);
-            SharePointGraphClient graphClient = new(graphHttpClient);
+        public Autogrator Build() {
+            AutogratorOptions options = _options ?? new();
+            SharePointClient client = SharePointClient.Create(
+                enableRequestLogging: options.EnableRequestLogging,
+                useSeparateRequestLogger: options.UseSeparateRequestLogger
+            );
             EmailReceiver receiver = new();
 
-            return new(graphClient, receiver) {
+            return new(client, receiver) {
+                Options = options,
                 AllowedSenders = _allowedSenders ?? DefaultAllowedSenders,
                 EmailFileNameFormatter = _emailFileNameFormatter ?? DefaultEmailFileNameFormatter
             };
-        }
-
-        private static ILogger<RequestLoggingHandler> DefaultRequestLogger {
-            get {
-                using ILoggerFactory factory = LoggerFactory.Create(builder => builder.AddConsole());
-                return factory.CreateLogger<RequestLoggingHandler>();
-            }
         }
 
         private static EmailFileNameFormatter DefaultEmailFileNameFormatter =>
