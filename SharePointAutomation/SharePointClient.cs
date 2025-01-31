@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json;
+using System.Diagnostics;
 
 using Newtonsoft.Json.Linq;
 using Serilog;
@@ -8,15 +9,36 @@ using Autogrator.Data;
 using Autogrator.Extensions;
 using Autogrator.Exceptions;
 using Autogrator.Utilities;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Logging;
 
 namespace Autogrator.SharePointAutomation;
 
-public sealed class SharePointGraphClient(GraphHttpClient _httpClient) {
+public sealed class SharePointClient(GraphHttpClient _httpClient) {
     private static readonly JsonSerializerOptions SerializerOptions = new() {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         WriteIndented = true,
         PropertyNameCaseInsensitive = true
     };
+
+    public static SharePointClient Create(
+        ILogger<RequestLoggingHandler>? logger = null,
+        bool enableRequestLogging = true,
+        bool useSeparateRequestLogger = true
+    ) {
+        IMemoryCache memoryCache = new MemoryCache(new MemoryCacheOptions());
+        RequestLoggingHandler loggingHandler = new(logger ?? DefaultRequestLogger()) {
+            LoggingEnabled = enableRequestLogging,
+            UseSeparateRequestsLogger = useSeparateRequestLogger,
+        };
+        AuthenticationHandler authenticationHandler = new(memoryCache) {
+            InnerHandler = loggingHandler
+        };
+
+        HttpClient httpClient = new(authenticationHandler);
+        GraphHttpClient graphHttpClient = new(httpClient);
+        return new(graphHttpClient);
+    }
 
     internal GraphHttpClient HttpClient { get; } = _httpClient;
 
@@ -27,7 +49,7 @@ public sealed class SharePointGraphClient(GraphHttpClient _httpClient) {
     }
 
     internal async Task<string> GetItemIdAsync(string driveId, string name, string? path = null) {
-        string itemPath = SharePointUtils.FormatPath(path);
+        string itemPath = FormatPath(path);
         IEnumerable<DriveItemInfo> driveItems = await GetChildrenAsync(itemPath, driveId);
         
         DriveItemInfo? result = driveItems.FirstOrDefault(item => item.Name == name);
@@ -60,7 +82,7 @@ public sealed class SharePointGraphClient(GraphHttpClient _httpClient) {
 
         string? idValue = drive["id"]?.Value<string>();
         if (idValue is not string id) {
-            Log.Fatal($"ID for drive {driveName} was not found");
+            Log.Fatal("ID for drive {DriveName} was not found", driveName);
             throw new AppDataNotFoundException();
         }
 
@@ -68,7 +90,7 @@ public sealed class SharePointGraphClient(GraphHttpClient _httpClient) {
     }
 
     internal async Task<string> CreateFolderAsync(FolderInfo folder, string driveId) {
-        string folderPath = SharePointUtils.FormatPath(folder.Directory);
+        string folderPath = FormatPath(folder.Directory);
         string endpoint = $"/drives/{driveId}/{folderPath}/children";
 
         DriveItemUpload driveItem = new(folder.Name);
@@ -118,7 +140,7 @@ public sealed class SharePointGraphClient(GraphHttpClient _httpClient) {
     }
 
     internal async Task<bool> FolderExistsAsync(FolderInfo folder, string driveId) {
-        string folderPath = SharePointUtils.FormatPath($"{folder.Directory}/{folder.Name}");
+        string folderPath = FormatPath($"{folder.Directory}/{folder.Name}");
         string endpoint = $"/drives/{driveId}/{folderPath}";
         return await HttpClient.IsSuccessfulResponseÁsync(endpoint, default);
     }
@@ -142,5 +164,19 @@ public sealed class SharePointGraphClient(GraphHttpClient _httpClient) {
             "Successfully downloaded {FileName} to {DestinationFolder}",
             Path.GetFileName(destinationPath), download.DestinationFolder
         );
+    }
+
+    private static string FormatPath(string? itemPath) {
+        if (string.IsNullOrWhiteSpace(itemPath)) return "root";
+
+        Debug.Assert(itemPath[0] == '/', "Path must start with '/'");
+        return $"root:{itemPath}:";
+    }
+
+    private static ILogger<RequestLoggingHandler> DefaultRequestLogger() {
+        using ILoggerFactory factory = LoggerFactory.Create(builder =>
+            builder.AddConsole().SetMinimumLevel(LogLevel.Debug)
+        );
+        return factory.CreateLogger<RequestLoggingHandler>(); ;
     }
 }
