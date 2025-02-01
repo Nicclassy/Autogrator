@@ -32,7 +32,7 @@ public static class AllowedSendersFile {
     public static readonly string DriveName = "AG_ALLOWED_SENDERS_DRIVE_NAME".EnvVariable(allowEmpty: true);
 }
 
-public static class AutogratorApplication {
+public static class ApplicationRegistration {
     public static readonly string ClientID = "AG_APPLICATION_CLIENT_ID".EnvVariable();
     public static readonly string TenantID = "AG_APPLICATION_TENANT_ID".EnvVariable();
     public static readonly string ClientSecret = "AG_APPLICATION_CLIENT_SECRET".EnvVariable();

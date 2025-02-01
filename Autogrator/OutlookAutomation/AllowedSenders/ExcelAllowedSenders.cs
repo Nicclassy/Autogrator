@@ -3,11 +3,11 @@ using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Autogrator.OutlookAutomation;
 
-public sealed class ExcelAllowedSenderList(Dictionary<string, string> folderNamesByAddress) : IAllowedSenderList {
+public sealed class ExcelAllowedSenders(Dictionary<string, string> folderNamesByAddress) : IAllowedSenders {
     private const int StartingRowIndex = 2;
     private const int StartingColumnIndex = 2;
 
-    public ExcelAllowedSenderList() : this(new(StringComparer.OrdinalIgnoreCase)) { }
+    public ExcelAllowedSenders() : this(new(StringComparer.OrdinalIgnoreCase)) { }
 
     public IEnumerator<string> GetEnumerator() => folderNamesByAddress.Keys.GetEnumerator();
 

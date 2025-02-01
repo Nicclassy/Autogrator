@@ -11,7 +11,7 @@ using Autogrator.Notifications;
 namespace Autogrator;
 
 public sealed partial class Autogrator(SharePointClient _client, EmailReceiver _emailReceiver) {
-    public required IAllowedSenderList AllowedSenders { get; set; }
+    public required IAllowedSenders AllowedSenders { get; set; }
     public required EmailFileNameFormatter EmailFileNameFormatter { get; set; }
     public required AutogratorOptions Options {
         get => field;
@@ -38,7 +38,6 @@ public sealed partial class Autogrator(SharePointClient _client, EmailReceiver _
             response.PrettyJson().Colourise(AnsiColours.Magenta)
         );
     }
-
     public async Task CreateFolderRecursivelyAsync(FolderInfo folder) {
         string driveId = await Client.GetDriveIdAsync(folder.DriveName, folder.SitePath);
         await Client.CreateFolderRecursivelyAsync(folder, driveId);
@@ -125,13 +124,20 @@ public sealed partial class Autogrator(SharePointClient _client, EmailReceiver _
         string downloadedFilePath = await DownloadFileAsync(download);
         AllowedSenders.Load(downloadedFilePath);
 
-        AppDomain.CurrentDomain.UnhandledException += EmailExceptionNotifier.EventHandler();
+        if (Options.SendExceptionNotificationEmails)
+            AppDomain.CurrentDomain.UnhandledException += EmailExceptionNotifier.EventHandler();
         EmailReceiver.Listen(AllowedSenders);
 
         while (true) {
             if (EmailReceiver.TryReceiveEmail(out Outlook.MailItem email))
                 await ProcessEmailAsync(email);
-            await Task.Delay(1000);
+            else
+                await Task.Delay(1000);
         }
+    }
+
+    public static async Task Main() {
+        Autogrator autogrator = new Builder().Build();
+        await autogrator.Run();
     }
 }

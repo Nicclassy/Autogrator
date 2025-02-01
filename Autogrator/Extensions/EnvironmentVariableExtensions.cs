@@ -1,16 +1,17 @@
 ﻿using DotNetEnv;
+using Serilog;
 
 namespace Autogrator.Extensions;
 
 public static class EnvironmentVariableExtensions {
-    static EnvironmentVariableExtensions() {
-        DotNetEnv.Env.Load(FindPathUpwards(".env"));
-    }
+    static EnvironmentVariableExtensions() => Env.Load(FindPathUpwards(".env"));
 
     public static string EnvVariable(this string name, bool allowEmpty = false) {
         string? value = Environment.GetEnvironmentVariable(name);
-        if (value is null || (!allowEmpty && string.IsNullOrWhiteSpace(value)))
-            throw new EnvVariableNotFoundException("Environment variable not found.", name);
+        if (value is null || (!allowEmpty && string.IsNullOrWhiteSpace(value))) {
+            Log.Fatal("Environment variable '{name}' not found.", name);
+            Environment.Exit(1);
+        }
         return value;
     }
 
@@ -23,7 +24,7 @@ public static class EnvironmentVariableExtensions {
         string path = Path.Combine(dir, file);
 
         while (!File.Exists(path)) {
-            var parent =
+            DirectoryInfo parent =
                 Directory.GetParent(dir)
                 ?? throw new ArgumentException($"{originalPath} not found");
             dir = parent.FullName;

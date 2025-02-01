@@ -3,7 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace Autogrator.OutlookAutomation;
 
-public sealed class AllEmailSendersAllowed : IAllowedSenderList {
+public sealed class AllEmailSendersAllowed : IAllowedSenders {
     private static readonly Regex EmailRegex =
         new(string.Join("",
             @"(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|",

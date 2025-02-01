@@ -29,7 +29,7 @@ public static partial class EmailExceptionNotifier {
             ExceptionInfo exceptionInfo = ExceptionInfo.Create(ex, now);
             string emailContent = File.ReadAllText(NotificationEmail.ContentPath);
 
-            Log.Error(
+            Log.Fatal(
                 "Application crashed at {TimeStamp} in {FileName} in {Method} on line {LineNumber}",
                 now.ToString("t"), stackTraceInfo.FileName, stackTraceInfo.Method, stackTraceInfo.LineNumber
             );

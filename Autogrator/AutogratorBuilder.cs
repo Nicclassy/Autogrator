@@ -9,11 +9,11 @@ namespace Autogrator;
 
 public partial class Autogrator {
     public partial class Builder {
-        private IAllowedSenderList? _allowedSenders;
+        private IAllowedSenders? _allowedSenders;
         private EmailFileNameFormatter? _emailFileNameFormatter;
         private AutogratorOptions? _options;
 
-        public Builder WithAllowedSenders(IAllowedSenderList allowedSenders) {
+        public Builder WithAllowedSenders(IAllowedSenders allowedSenders) {
             _allowedSenders = allowedSenders;
             return this;
         }
@@ -50,6 +50,6 @@ public partial class Autogrator {
                 return $"{mailItem.SenderName} {creationTime}";
             };
 
-        private static IAllowedSenderList DefaultAllowedSenders => new AllEmailSendersAllowed();
+        private static IAllowedSenders DefaultAllowedSenders => new AllEmailSendersAllowed();
     }
 }

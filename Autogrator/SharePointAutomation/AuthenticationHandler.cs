@@ -9,6 +9,7 @@ using Serilog;
 using Autogrator.Exceptions;
 using Autogrator.Utilities;
 using Newtonsoft.Json.Linq;
+using Autogrator.Extensions;
 
 namespace Autogrator.SharePointAutomation;
 
@@ -37,12 +38,12 @@ internal sealed class AuthenticationHandler : DelegatingHandler {
             return cachedToken;
         }
 
-        string authUrl = string.Format(UrlFormat, AutogratorApplication.TenantID);
+        string authUrl = string.Format(UrlFormat, ApplicationRegistration.TenantID);
         string dataContent = string.Format(
             ContentFormat,
-            AutogratorApplication.ClientID,
-            AutogratorApplication.ClientSecret,
-            AutogratorApplication.Scope
+            ApplicationRegistration.ClientID,
+            ApplicationRegistration.ClientSecret,
+            ApplicationRegistration.Scope
         );
         StringContent data = new(dataContent, Encoding.UTF8, MediaType);
 

@@ -10,7 +10,7 @@ public sealed class EmailReceiver {
     
     private readonly ConcurrentQueue<Outlook.MailItem> emailsTodo = new();
 
-    public void Listen(IAllowedSenderList? allowedSenders = null) {
+    public void Listen(IAllowedSenders? allowedSenders = null) {
         bool SenderIsAllowed(Outlook.MailItem email) {
             if (allowedSenders is null) return true;
             return allowedSenders.IsAllowed(email.SenderEmailAddress);
