@@ -25,9 +25,9 @@ a Windows VM to use.
 ## Prerequisites
 * .NET 9.0
 * A Windows VM if you plan to use Autogrator automatically (you do not need one for its setup, however)
-* (Optional) `msbuild` if you want to build Autogrator manually
 * A user with sufficient administrative priviledges in Microsoft Entra admin center
 to grant appropriate application permissions for your registered application
+* (Optional) `msbuild` if you want to build Autogrator manually
 
 ## Online Setup
 
@@ -47,7 +47,7 @@ Be wary that you will need sufficient administrative priviledges to grant this p
 
 1. Clone this repository using the command
 ```powershell
-git clone https://github.com/Nicclassy/Autogrator
+git clone "https://github.com/Nicclassy/Autogrator"
 ```
 
 2. Install [Microsoft Office 365](https://www.microsoft.com/en-us/microsoft-365/download-office) 
@@ -101,6 +101,7 @@ Autogrator autogrator = new Autogrator.Builder()
 
 ## Running Autogrator
 There are three ways to run Autogrator:
+
 a. Use Autogrator in your code. Configure the instance of `Autogrator` using `Autogrator.Builder`
 and `AutogratorOptions`. For example:
 ```csharp
@@ -117,13 +118,13 @@ Autogrator autogrator = new Autogrator.Builder()
 autogrator.Run();
 ```
 
-b. Use Visual Studio Code to run Autogrator. This merely requires you to click the 'Start Without Debugging' button,
+b. Use Visual Studio Code to run Autogrator. This merely requires you to click the 'Start Without Debugging' button.
 
 c. Build and run Autogrator manually using the following commands (this requires `msbuild` to be installed):
 ```powershell
 dotnet restore
 msbuild /t:Build /p:Configuration=Release
-start .\bin\Release\net9.0\Autogrator.exe
+start ".\bin\Release\net9.0\Autogrator.exe"
 ```
 
 ## Obtaining SharePoint Information
