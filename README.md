@@ -31,8 +31,8 @@ to grant appropriate application permissions for your registered application
 
 ## Online Setup
 
-1. [Create a new Microsoft Entra app registration](https://learn.microsoft.com/en-us/graph/toolkit/get-started/add-aad-app-registration). 
-You do not need to include a Redirect URI
+1. [Create a new app registration](https://learn.microsoft.com/en-us/graph/toolkit/get-started/add-aad-app-registration)
+at https://entra.microsoft.com. You do not need to include a Redirect URI
 
 2. Once you have created your application, note its Client ID (which is also known as its Application ID) and
 its Tenant ID (also known as its Directory ID). You will need these values later to store in the `.env` file
@@ -108,7 +108,7 @@ and `AutogratorOptions`. For example:
 using Autogrator;
 
 Autogrator autogrator = new Autogrator.Builder()
-    .WithAllowedSenders(new ExcelAllowedSenders)
+    .WithAllowedSenders(new ExcelAllowedSenders())
     .WithEmailFileNameFormatter(mailItem => $"{mailItem.SenderName} {mailItem.CreationTime}")
     .WithOptions(new AutogratorOptions {
         OverwriteDownloads = true,
@@ -124,7 +124,7 @@ c. Build and run Autogrator manually using the following commands (this requires
 ```powershell
 dotnet restore
 msbuild /t:Build /p:Configuration=Release
-start ".\bin\Release\net9.0\Autogrator.exe"
+start ".\Autogrator\bin\Release\net9.0\Autogrator.exe"
 ```
 
 ## Obtaining SharePoint Information

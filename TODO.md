@@ -14,6 +14,7 @@ from `AutogratorOptions`
 are empty but the `SendExceptionNotificationEmails` option is set to true, exit without an exception
 * `GraphHttpClient.LogFailureAndThrow` should follow correct message templating conventions
 * `EmailReceiver.LogRejectedSenders` should be configured in `AutogratorOptions`
+* Store all logs in the same folder
 * Configuration of the subject of automated emails
 * Testing if Autogrator runs on MacOS
 
