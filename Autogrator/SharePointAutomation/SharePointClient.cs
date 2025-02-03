@@ -39,7 +39,14 @@ public sealed class SharePointClient(GraphHttpClient _httpClient) {
         GraphHttpClient graphHttpClient = new(httpClient);
         return new(graphHttpClient);
     }
+
     internal GraphHttpClient HttpClient { get; } = _httpClient;
+
+    internal async Task<FileModificationInfo> GetFileModificationInfoAsync(FileModificationInfoRequest fileInfo) {
+        string driveId = await GetDriveIdAsync(fileInfo.DriveName, fileInfo.SitePath);
+        string itemId = await GetItemIdAsync(fileInfo.FileName, driveId, fileInfo.FileDirectory);
+        return await HttpClient.GetAsync<FileModificationInfo>($"/drives/{driveId}/items/{itemId}", default);
+    }
 
     internal async Task<IEnumerable<DriveItemInfo>> GetChildrenAsync(string fullpath, string driveId) {
         List<DriveItemInfo> items = await HttpClient
@@ -47,15 +54,15 @@ public sealed class SharePointClient(GraphHttpClient _httpClient) {
         return items;
     }
 
-    internal async Task<string> GetItemIdAsync(string driveId, string name, string? path = null) {
+    internal async Task<string> GetItemIdAsync(string itemName, string driveId, string? path = null) {
         string itemPath = FormatPath(path);
         IEnumerable<DriveItemInfo> driveItems = await GetChildrenAsync(itemPath, driveId);
         
-        DriveItemInfo? result = driveItems.FirstOrDefault(item => item.Name == name);
+        DriveItemInfo? result = driveItems.FirstOrDefault(item => item.Name == itemName);
         if (result is not DriveItemInfo { Id: string id }) {
             Log.Fatal(
                 "Item with name '{ItemName}' at path '{ItemPath}' was not found", 
-                name, itemPath
+                itemName, itemPath
             );
             throw new AppDataNotFoundException();
         }
@@ -79,8 +86,7 @@ public sealed class SharePointClient(GraphHttpClient _httpClient) {
             && name.ToString() == driveName
         )!;
 
-        string? idValue = drive["id"]?.Value<string>();
-        if (idValue is not string id) {
+        if (drive["id"]?.ToString() is not string id) {
             Log.Fatal("ID for drive {DriveName} was not found", driveName);
             throw new AppDataNotFoundException();
         }

@@ -1,19 +1,23 @@
 ﻿using System.Text;
+using System.Text.Json;
 using System.Net.Http.Headers;
 
 using Newtonsoft.Json.Linq;
 using Serilog;
 
 using Autogrator.Exceptions;
-using Autogrator.Extensions;
 using Autogrator.Utilities;
-
 namespace Autogrator.SharePointAutomation;
 
 public sealed class GraphHttpClient(HttpClient httpClient) {
     private const string PostMediaType = "application/json";
     private const string PaginationKey = "@odata.nextLink";
+
     private static readonly Encoding PostEncoding = Encoding.UTF8;
+    private static readonly JsonSerializerOptions SerializerOptions = new() {
+        PropertyNameCaseInsensitive = true,
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
+    };
 
     internal async Task<bool> IsSuccessfulResponseÁsync(string endpoint, CancellationToken cancellationToken) {
         string requestUri = CreateRequestUri(endpoint);
@@ -68,6 +72,11 @@ public sealed class GraphHttpClient(HttpClient httpClient) {
         return await response.Content.ReadAsStringAsync(cancellationToken);
     }
 
+    internal async Task<T> GetAsync<T>(string endpoint, CancellationToken cancellationToken) {
+        string response = await GetAsync(endpoint, cancellationToken);
+        return JsonSerializer.Deserialize<T>(response, SerializerOptions)!;
+    }
+
     internal async Task<string> PostAsync(string endpoint, string data, CancellationToken cancellationToken) {
         string requestUri = CreateRequestUri(endpoint);
         StringContent content = new(data, PostEncoding, PostMediaType);
@@ -93,9 +102,10 @@ public sealed class GraphHttpClient(HttpClient httpClient) {
     }
 
     private static void LogFailureAndThrow(string method, string endpoint, HttpResponseMessage response) {
-        string errorMessage = $"Request {method} {endpoint} failed with status code {(int)response.StatusCode}. "
-            + $"Reason: {response.ReasonPhrase}";
-        Log.Fatal(errorMessage.Colourise(AnsiColours.Red));
+        Log.Fatal(
+            "{ErrorColour}Request {Method} {Endpoint} failed with status code {StatusCode}. Reason: {Reason}{Reset}",
+            AnsiColours.Red, method, endpoint, (int) response.StatusCode, response.ReasonPhrase, AnsiColours.Reset
+        );
         throw new RequestUnsuccessfulException();
     }
 
@@ -103,5 +113,5 @@ public sealed class GraphHttpClient(HttpClient httpClient) {
         endpoint.StartsWith("https") ? endpoint : GraphAPI.URL + endpoint;
 
     private static string FormatRequestKeys(string[] keys, string query = "select") =>
-        keys.Length > 0 ? $"?${query}={string.Join(',', keys)}" : "";
+        keys.Length > 0 ? $"?${query}={string.Join(',', keys)}" : string.Empty;
 }

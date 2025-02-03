@@ -5,10 +5,14 @@ using Serilog;
 
 namespace Autogrator.OutlookAutomation;
 
+public delegate void EmailReceivedHandler();
+
 public sealed class EmailReceiver {
     private const bool LogRejectedSenders = true;
     
     private readonly ConcurrentQueue<Outlook.MailItem> emailsTodo = new();
+
+    public event EmailReceivedHandler? OnEmailReceived;
 
     public void Listen(IAllowedSenders? allowedSenders = null) {
         bool SenderIsAllowed(Outlook.MailItem email) {
@@ -17,6 +21,7 @@ public sealed class EmailReceiver {
         }
 
         OutlookInstance.Application.NewMailEx += delegate (string entryID) {
+            OnEmailReceived?.Invoke();
             Outlook.MailItem email = OutlookInstance.NameSpace.GetItemFromID(entryID);
             if (SenderIsAllowed(email)) {
                 emailsTodo.Enqueue(email);
