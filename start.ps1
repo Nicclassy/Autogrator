@@ -1,12 +1,35 @@
-if (!(Test-Path ".env" -PathType Leaf)) {
-	Write-Error ".env does not exist and is required. Make sure to follow the guidance in the README"
+param (
+	[string]$EnvFilePath = ".env",
+	[string]$Configuration = "Release"
+)
+
+$ProgramName = "Autogrator"
+
+if (!(Test-Path $EnvFilePath -PathType Leaf)) {
+	Write-Error "The required .env file was not found at '$EnvFilePath'. Make sure to follow the guidance in the README"
 	exit 1
 }
 if (!(Get-Command "msbuild" -ErrorAction SilentlyContinue)) {
-	Write-Error "msbuild is required for this script"
+	Write-Error "msbuild must be installed and in your PATH for this script to work properly"
 	exit 1
 }
 
+Write-Host "Restoring dependencies..."
 dotnet restore
-msbuild /t:Build /p:Configuration=Release
-start ".\Autogrator\bin\Release\net9.0\Autogrator.exe"
+if ($LASTEXITCODE -ne 0) {
+	Write-Error "Failed to restore Autogrator dependencies"
+	exit $LASTEXITCODE
+}
+
+Write-Host "Building Autogrator with configuration '$Configuration'..."
+msbuild /t:Build /p:Configuration=$Configuration
+if ($LASTEXITCODE -ne 0) {
+	Write-Error "Failed to build Autogrator"
+	exit $LASTEXITCODE
+}
+
+$executablePath = ".\$ProgramName\bin\$Configuration\net9.0\$ProgramName.exe"
+if (!(Test-Path $executablePath)) {
+	Write-Error "The Autogrator executable was not found at $executablePath"
+	exit 1
+}
