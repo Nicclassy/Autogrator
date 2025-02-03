@@ -1,4 +1,5 @@
 ﻿using System.Collections;
+
 using Excel = Microsoft.Office.Interop.Excel;
 
 namespace Autogrator.OutlookAutomation;
@@ -6,6 +7,8 @@ namespace Autogrator.OutlookAutomation;
 public sealed class ExcelAllowedSenders(Dictionary<string, string> folderNamesByAddress) : IAllowedSenders {
     private const int StartingRowIndex = 2;
     private const int StartingColumnIndex = 2;
+
+    private string? filepath;
 
     public ExcelAllowedSenders() : this(new(StringComparer.OrdinalIgnoreCase)) { }
 
@@ -17,7 +20,7 @@ public sealed class ExcelAllowedSenders(Dictionary<string, string> folderNamesBy
         Excel.Application excel = new();
         Excel.Workbook workbook = excel.Workbooks.Open(filepath);
         Excel.Worksheet worksheet = workbook.Worksheets[1];
-        
+
         int rowIndex = StartingRowIndex;
         Excel.Range cell = worksheet.Cells[rowIndex, 1];
         string cellValue = cell.Value;
@@ -28,6 +31,13 @@ public sealed class ExcelAllowedSenders(Dictionary<string, string> folderNamesBy
             cell = worksheet.Cells[rowIndex, 1];
             cellValue = cell.Value;
         }
+
+        this.filepath = filepath;
+    }
+
+    public void Reload() {
+        ArgumentNullException.ThrowIfNull(filepath, nameof(filepath));
+        Load(filepath);
     }
 
     public bool IsAllowed(string emailAddress) => folderNamesByAddress.ContainsKey(emailAddress);

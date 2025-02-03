@@ -11,7 +11,7 @@ public static partial class OutlookInstance {
 
     public static Outlook.Application Application { get; } = new();
     public static Outlook.NameSpace NameSpace { get; } = Application.GetNamespace("MAPI");
-    public static bool IsAuthenticated { get; private set; } = false;
+    public static bool IsAuthenticated { get; internal set; } = false;
 
     public static Outlook.MAPIFolder Inbox =>
         NameSpace.GetDefaultFolder(Outlook.OlDefaultFolders.olFolderInbox);

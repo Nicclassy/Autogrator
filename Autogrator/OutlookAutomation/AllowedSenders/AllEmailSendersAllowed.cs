@@ -19,7 +19,9 @@ public sealed class AllEmailSendersAllowed : IAllowedSenders {
 
     IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
 
-    public void Load(string filename) { }
+    public void Load(string _) { }
+
+    public void Reload() { }
 
     public bool IsAllowed(string emailAddress) => IsValidEmailAddress(emailAddress);
 
