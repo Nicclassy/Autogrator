@@ -7,20 +7,20 @@ using Serilog;
 
 using Autogrator.Utilities;
 using Autogrator.OutlookAutomation;
-using Autogrator.Extensions;
 
 namespace Autogrator.Notifications;
 
-public static partial class EmailExceptionNotifier {
-    public const string LogFileName = "log.txt";
+public partial class EmailExceptionNotifier {
 
     private const int ExceptionThrowerFrameIndex = 7;
-    private static readonly bool ReviewSentEmails = true;
+    public required bool ReviewSentEmails { get; init; }
+    public required string LogFileName { get; init; }
+    public required string LoggingDirectory { get; init; }
 
     [GeneratedRegex(@"\d+")]
     private static partial Regex TimeStampPattern();
 
-    public static UnhandledExceptionEventHandler EventHandler() =>
+    public UnhandledExceptionEventHandler EventHandler() =>
         (_, e) => {
             DateTime now = DateTime.Now;
             Exception ex = (Exception) e.ExceptionObject;
@@ -38,11 +38,12 @@ public static partial class EmailExceptionNotifier {
             SendEmail(exceptionInfo, stackTraceInfo, emailContent);
         };
 
-    internal static string LatestLogFilePath(string directory = ".") {
+    private string LatestLogFilePath() {
         const string SerilogFileFormat = "yyyyMMdd";
-
+        
+        string loggingDirectory = Path.Combine(Directory.GetCurrentDirectory(), LoggingDirectory);
         string filename = Directory
-            .EnumerateFiles(directory)
+            .EnumerateFiles(loggingDirectory)
             .Select(path => Path.GetFileName(path))
             .Where(filename => TimeStampPattern().IsMatch(filename))
             .Select(filename => {
@@ -54,10 +55,10 @@ public static partial class EmailExceptionNotifier {
             .First()
             .filename;
 
-        return Path.Combine(Path.GetFullPath(directory), filename);
+        return Path.Combine(loggingDirectory, filename);
     }
 
-    internal static void SendEmail(
+    private void SendEmail(
         ExceptionInfo exceptionInfo, 
         StackTraceInfo stackTraceInfo, 
         string emailContent
