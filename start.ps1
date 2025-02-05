@@ -3,8 +3,6 @@ param (
 	[string]$Configuration = "Release"
 )
 
-$ProgramName = "Autogrator"
-
 if (!(Test-Path $EnvFilePath -PathType Leaf)) {
 	Write-Error "The required .env file was not found at '$EnvFilePath'. Make sure to follow the guidance in the README"
 	exit 1
@@ -28,8 +26,11 @@ if ($LASTEXITCODE -ne 0) {
 	exit $LASTEXITCODE
 }
 
-$executablePath = ".\$ProgramName\bin\$Configuration\net9.0\$ProgramName.exe"
+$executablePath = ".\Autogrator\bin\$Configuration\net9.0\Autogrator.exe"
 if (!(Test-Path $executablePath)) {
 	Write-Error "The Autogrator executable was not found at $executablePath"
 	exit 1
 }
+
+Write-Host "Running Autogrator..."
+Start-Process $executablePath

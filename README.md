@@ -35,7 +35,7 @@ to grant appropriate application permissions for your registered application
 at https://entra.microsoft.com. You do not need to include a Redirect URI
 
 2. Once you have created your application, note its Client ID (which is also known as its Application ID) and
-its Tenant ID (also known as its Directory ID). You will need these values later to store in the `.env` file
+its Tenant ID (also known as its Directory ID). You will need these values later to store in your `.env` file
 
 3. Create a new 'Client Secret' for your app registration by navigating to the 'Certificates & secrets' menu, and note the value
 as you will need it later
@@ -54,10 +54,10 @@ git clone "https://github.com/Nicclassy/Autogrator"
 and login to Outlook
 
 3. Copy `.env.example`, rename it to `.env` and fill out the missing values.
-The next two steps provides context with regard to 
+The next two steps provide context with regard to 
 `AG_EMAIL_CONTENT_PATH` and `AG_ALLOWED_SENDERS_*` but are optional.
 For the values pertaining to SharePoint (e.g. site paths/drive names),
-see [Obtaining SharePoint Infromation](#obtaining-sharepoint-information).
+see [Obtaining SharePoint Information](#obtaining-sharepoint-information).
 You can perform this step by using the following commands in PowerShell:
 ```powershell
 Copy-Item .env.example .env
@@ -120,12 +120,7 @@ autogrator.Run();
 
 b. Use Visual Studio Code to run Autogrator. This merely requires you to click the 'Start Without Debugging' button.
 
-c. Build and run Autogrator manually using the following commands (this requires `msbuild` to be installed):
-```powershell
-dotnet restore
-msbuild /t:Build /p:Configuration=Release
-start ".\Autogrator\bin\Release\net9.0\Autogrator.exe"
-```
+c. Start Autogrator using `start.cmd` or `start.ps1`.
 
 ## Obtaining SharePoint Information
 In the fictional SharePoint URL

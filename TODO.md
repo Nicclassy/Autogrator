@@ -13,14 +13,10 @@ async function calls that don't depend on each other
 from `AutogratorOptions`
 * Handle the case for which the notification email environment variables are empty. If they
 are empty but the `SendExceptionNotificationEmails` option is set to true, exit without an exception
-* `GraphHttpClient.LogFailureAndThrow` should follow correct message templating conventions
-* `EmailReceiver.LogRejectedSenders` should be configured in `AutogratorOptions`
 * `IAllowedSenders` constructor must load the values from the file
 * Improve response logging. The responses should be logged by the function
 which obtains them, not by another function higher up in the call stack
-* Store all logs in the same folder
 * Configuration of the subject of automated emails
-* Testing if Autogrator runs on MacOS
 
 Some of these may never be implemeted, however the intention is to complete the important
 items on the list.
