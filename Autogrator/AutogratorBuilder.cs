@@ -34,7 +34,8 @@ public partial class Autogrator {
                 enableRequestLogging: options.EnableRequestLogging,
                 useSeparateRequestLogger: options.UseSeparateRequestLogger
             );
-            EmailReceiver receiver = new();
+
+            EmailReceiver receiver = new() { LogRejectedEmails = options.LogRejectedEmails };
 
             return new(client, receiver) {
                 Options = options,
@@ -46,7 +47,7 @@ public partial class Autogrator {
         private static EmailFileNameFormatter DefaultEmailFileNameFormatter =>
             delegate (Outlook.MailItem mailItem) {
                 string creationTime =
-                    mailItem.CreationTime.ToString("yyyyMMdd", CultureInfo.CurrentCulture);
+                    mailItem.CreationTime.ToString("yyyyMMddTHHmmss", CultureInfo.CurrentCulture);
                 return $"{mailItem.SenderName} {creationTime}";
             };
 

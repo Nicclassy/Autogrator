@@ -3,12 +3,11 @@ using Serilog.Sinks.SystemConsole.Themes;
 using Serilog.Events;
 
 using Autogrator.Utilities;
-using Autogrator.Notifications;
 
 namespace Autogrator;
 
 public partial class Autogrator {
-    private static partial void SetDefaultLoggingConfiguration() {
+    private partial void SetDefaultLoggingConfiguration() {
         Dictionary<ConsoleThemeStyle, string> styles = new() {
             [ConsoleThemeStyle.SecondaryText] = new AnsiHexColour("#ce3189"),
             [ConsoleThemeStyle.TertiaryText] = new AnsiHexColour("#9c6380"),
@@ -27,11 +26,12 @@ public partial class Autogrator {
         };
         AnsiConsoleTheme theme = new(styles);
 
+        string filepath = Path.Combine(Path.GetFullPath(Options.LoggingFolder), Options.LogFileName);
         Log.Logger = new LoggerConfiguration()
             .MinimumLevel.Debug()
             .WriteTo.Console(theme: theme)
             .WriteTo.File(
-                EmailExceptionNotifier.LogFileName,
+                filepath,
                 rollingInterval: RollingInterval.Day,
                 restrictedToMinimumLevel: LogEventLevel.Debug
             )

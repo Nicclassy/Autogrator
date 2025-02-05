@@ -21,6 +21,7 @@ public static class Credentials {
         public static readonly string Profile = "AG_OUTLOOK_PROFILE".EnvVariable(allowEmpty: true);
         public static readonly string Email = "AG_OUTLOOK_PROFILE".EnvVariable(allowEmpty: true);
         public static readonly string Password = "AG_OUTLOOK_PASSWORD".EnvVariable(allowEmpty: true);
+        public static readonly string AllowedRecipients = "AG_OUTLOOK_ALLOWED_RECIPIENTS".EnvVariable(allowEmpty: true);
     }
 }
 
@@ -40,7 +41,7 @@ public static class ApplicationRegistration {
 }
 
 public static class NotificationEmail {
-    public static readonly string SenderEmailAddress = "AG_NOTIFICATION_EMAIL_SENDER_ADDRESS".EnvVariable();
-    public static readonly string RecipientEmailAddress = "AG_NOTIFICATION_EMAIL_RECIPIENT_ADDRESS".EnvVariable();
-    public static readonly string ContentPath = "AG_EMAIL_CONTENT_PATH".EnvVariable();
+    public static readonly string SenderEmailAddress = "AG_NOTIFICATION_EMAIL_SENDER_ADDRESS".EnvVariable(allowEmpty: true);
+    public static readonly string RecipientEmailAddress = "AG_NOTIFICATION_EMAIL_RECIPIENT_ADDRESS".EnvVariable(allowEmpty: true);
+    public static readonly string ContentPath = "AG_NOTIFICATION_EMAIL_CONTENT_PATH".EnvVariable(allowEmpty: true);
 }

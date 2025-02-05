@@ -137,7 +137,6 @@ public sealed partial class Autogrator(SharePointClient _client, EmailReceiver _
         string downloadedFilePath = await DownloadFileAsync(download);
         AllowedSenders.Load(downloadedFilePath);
 
-        EmailReceivedHandler? handler = null;
         if (Options.AutoDownloadAllowedSenders) {
             DownloadFileOnChange downloader = GetFileChangeDownloader(download, postDownload: delegate {
                 Log.Information(
@@ -147,7 +146,6 @@ public sealed partial class Autogrator(SharePointClient _client, EmailReceiver _
                 AllowedSenders.Reload();
             });
             await AddEmailReceivedHandler(downloader);
-            handler = await downloader.CreateHandler();
         }
 
         if (Options.SendExceptionNotificationEmails) {
@@ -164,7 +162,7 @@ public sealed partial class Autogrator(SharePointClient _client, EmailReceiver _
             if (EmailReceiver.TryReceiveEmail(out Outlook.MailItem email))
                 await ProcessEmailAsync(email);
             else
-                await Task.Delay(1000);
+                await Task.Delay(Options.ExecutionInterval);
         }
     }
 
