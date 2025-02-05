@@ -4,17 +4,15 @@ using System.IdentityModel.Tokens.Jwt;
 
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.IdentityModel.Tokens;
+using Newtonsoft.Json.Linq;
 using Serilog;
 
 using Autogrator.Exceptions;
 using Autogrator.Utilities;
-using Newtonsoft.Json.Linq;
-using Autogrator.Extensions;
 
 namespace Autogrator.SharePointAutomation;
 
 internal sealed class AuthenticationHandler : DelegatingHandler {
-    // TODO: Check if JWT Token has appropriate permissions
     private const string UrlFormat = "https://login.microsoftonline.com/{0}/oauth2/v2.0/token";
     private const string ContentFormat = "grant_type=client_credentials&client_id={0}&client_secret={1}&scope={2}";
     private const string MediaType = "application/x-www-form-urlencoded";
@@ -32,11 +30,9 @@ internal sealed class AuthenticationHandler : DelegatingHandler {
         return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
-    internal async Task<string> GetAccessTokenAsync() {
-        if (GetCachedAccessToken() is string cachedToken) {
-            Log.Information("Access token was found in the cache.");
+    private async Task<string> GetAccessTokenAsync() {
+        if (GetCachedAccessToken() is string cachedToken)
             return cachedToken;
-        }
 
         string authUrl = string.Format(UrlFormat, ApplicationRegistration.TenantID);
         string dataContent = string.Format(
@@ -48,20 +44,25 @@ internal sealed class AuthenticationHandler : DelegatingHandler {
         StringContent data = new(dataContent, Encoding.UTF8, MediaType);
 
         using HttpClient httpClient = new();
-        HttpResponseMessage authResponse = await httpClient.PostAsync(authUrl, data);
-        if (!authResponse.IsSuccessStatusCode) {
-            Log.Fatal("Access token request returned an unsuccessful status code of {StatusCode}", authResponse.StatusCode);
+        HttpResponseMessage response = await httpClient.PostAsync(authUrl, data);
+        if (!response.IsSuccessStatusCode) {
+            Log.Fatal("Access token request returned an unsuccessful status code of {StatusCode}", response.StatusCode);
             throw new AccessTokenRetrievalFailedException();
         }
 
-        string content = await authResponse.Content.ReadAsStringAsync();
+        string content = await response.Content.ReadAsStringAsync();
         JObject json = JObject.Parse(content);
         if (json[AccessTokenKey]?.ToString() is not string accessToken) {
             Log.Fatal("The key '{AccessTokenKey}' was not found in the JSON response", AccessTokenKey);
             throw new AccessTokenRetrievalFailedException();
         }
-            
-        
+
+        if (!TokenHasPermissions(accessToken)) {
+            Log.Fatal("Your JWT has no site/file permissions.");
+            Log.Fatal("Please ensure you add the application permission Sites.ReadWrite.All or a higher-level permission");
+            throw new AccessTokenRetrievalFailedException();
+        }
+
         CacheAccessToken(accessToken);
         Log.Information("Token succesfully cached and obtained.");
         return accessToken;
@@ -73,9 +74,22 @@ internal sealed class AuthenticationHandler : DelegatingHandler {
             : null;
 
     private void CacheAccessToken(string accessToken) {
-        SecurityToken token = TokenHandler.ReadToken(accessToken)!;
+        SecurityToken token = TokenHandler.ReadToken(accessToken)
+            ?? throw new InvalidDataException("Cannot read JWT token");
         TimeSpan duration = token.ValidTo - token.ValidFrom;
         Log.Information("Cachked token duration is {Minutes} minutes", duration.Minutes);
         memoryCache.Set(AccessTokenKey, accessToken, duration);
+    }
+
+    private bool TokenHasPermissions(string accessToken) {
+        JwtSecurityToken securityToken = TokenHandler.ReadToken(accessToken) as JwtSecurityToken
+            ?? throw new InvalidDataException("Cannot read JWT token");
+
+        // Does not completely verify that permissions are correct
+        // This is more for informing the user if they haven't added any permissions
+        var claims = securityToken.Claims
+            .Where(claim => claim.Type == "roles")
+            .Where(claim => claim.Value.StartsWith("Sites") || claim.Value.StartsWith("Files"));
+        return claims.Any();
     }
 }
