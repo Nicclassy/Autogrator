@@ -22,9 +22,9 @@ public sealed class SharePointClient(GraphHttpClient _httpClient) {
     };
 
     public static SharePointClient Create(
-        ILogger<RequestLoggingHandler>? logger = null,
-        bool enableRequestLogging = true,
-        bool useSeparateRequestLogger = true
+        bool enableRequestLogging,
+        bool useSeparateRequestLogger,
+        ILogger<RequestLoggingHandler>? logger = null
     ) {
         IMemoryCache memoryCache = new MemoryCache(new MemoryCacheOptions());
         RequestLoggingHandler loggingHandler = new(logger ?? DefaultRequestLogger()) {
@@ -115,8 +115,12 @@ public sealed class SharePointClient(GraphHttpClient _httpClient) {
 
     internal async Task CreateFolderRecursivelyAsync(FolderInfo folder, string driveId) {
         if (folder.Directory is not { } directory) {
-            if (!await FolderExistsAsync(folder, driveId))
+            if (!await FolderExistsAsync(folder, driveId)) {
+                Log.Information("Folder /{Name} does not exist. Creating...", folder.Name);
                 await CreateFolderAsync(folder, driveId);
+            } else {
+                Log.Information("Folder /{Name} already exists", folder.Name);
+            }
             return;
         }
 
@@ -130,12 +134,14 @@ public sealed class SharePointClient(GraphHttpClient _httpClient) {
             
             if (!await FolderExistsAsync(parentFolder, driveId)) {
                 Log.Information(
-                    $"Folder {parentFolder.Directory}/{parentFolder.Name} does not exist. Creating...".Colourise(AnsiColours.BgBrightRed)
+                    "Folder {Directory}/{Name} does not exist. Creating...",
+                    parentFolder.Directory ?? string.Empty, parentFolder.Name
                 );
                 await CreateFolderAsync(parentFolder, driveId);
             } else {
                 Log.Information(
-                    $"Folder {parentFolder.Directory}/{parentFolder.Name} already exists".Colourise(AnsiColours.BgYellow)
+                    "Folder {Directory}/{Name} already exists",
+                    parentFolder.Directory ?? string.Empty, parentFolder.Name
                 );
             }
 
@@ -182,6 +188,6 @@ public sealed class SharePointClient(GraphHttpClient _httpClient) {
         using ILoggerFactory factory = LoggerFactory.Create(builder =>
             builder.AddConsole().SetMinimumLevel(LogLevel.Debug)
         );
-        return factory.CreateLogger<RequestLoggingHandler>(); ;
+        return factory.CreateLogger<RequestLoggingHandler>();
     }
 }

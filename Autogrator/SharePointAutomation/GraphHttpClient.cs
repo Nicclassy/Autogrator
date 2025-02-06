@@ -29,7 +29,7 @@ public sealed class GraphHttpClient(HttpClient httpClient) {
         string content = await GetAsync($"{endpoint}{FormatRequestKeys([key])}", cancellationToken);
         JObject json = JObject.Parse(content);
         if (json[key]?.ToString() is not string value) {
-            Log.Fatal($"Key '{key}' was not found in the response.");
+            Log.Fatal("Key '{Key}' was not found in the response.", key);
             throw new AppDataNotFoundException();
         }
 
