@@ -32,6 +32,9 @@ public sealed class ExcelAllowedSenders(Dictionary<string, string> folderNamesBy
             cellValue = cell.Value;
         }
 
+        workbook.Close();
+        excel.Quit();
+
         this.filepath = filepath;
     }
 
