@@ -4,6 +4,7 @@ using Outlook = Microsoft.Office.Interop.Outlook;
 
 using Autogrator.OutlookAutomation;
 using Autogrator.SharePointAutomation;
+using Autogrator.Notifications;
 
 namespace Autogrator;
 
@@ -11,6 +12,7 @@ public partial class Autogrator {
     public partial class Builder {
         private IAllowedSenders? _allowedSenders;
         private EmailFileNameFormatter? _emailFileNameFormatter;
+        private TimeNotifier? _timeNotifier;
         private AutogratorOptions? _options;
 
         public Builder WithAllowedSenders(IAllowedSenders allowedSenders) {
@@ -28,6 +30,11 @@ public partial class Autogrator {
             return this;
         }
 
+        public Builder WithTimeNotifier(TimeNotifier timeNotifier) {
+            _timeNotifier = timeNotifier;
+            return this;
+        }
+
         public Autogrator Build() {
             AutogratorOptions options = _options ?? new();
             SharePointClient client = SharePointClient.Create(
@@ -40,7 +47,8 @@ public partial class Autogrator {
             return new(client, receiver) {
                 Options = options,
                 AllowedSenders = _allowedSenders ?? DefaultAllowedSenders,
-                EmailFileNameFormatter = _emailFileNameFormatter ?? DefaultEmailFileNameFormatter
+                EmailFileNameFormatter = _emailFileNameFormatter ?? DefaultEmailFileNameFormatter,
+                TimeNotifier = _timeNotifier
             };
         }
 

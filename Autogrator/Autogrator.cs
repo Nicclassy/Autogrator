@@ -11,8 +11,10 @@ using Autogrator.Notifications;
 namespace Autogrator;
 
 public sealed partial class Autogrator(SharePointClient _client, EmailReceiver _emailReceiver) {
-    public required IAllowedSenders AllowedSenders { get; set; }
-    public required EmailFileNameFormatter EmailFileNameFormatter { get; set; }
+    public required IAllowedSenders AllowedSenders { get; init; }
+
+    public required EmailFileNameFormatter EmailFileNameFormatter { get; init; }
+
     public required AutogratorOptions Options {
         get => field;
         init {
@@ -21,6 +23,9 @@ public sealed partial class Autogrator(SharePointClient _client, EmailReceiver _
                 SetDefaultLoggingConfiguration();
         }
     }
+
+    public TimeNotifier? TimeNotifier { get; init; }
+
 
     internal SharePointClient Client { get; } = _client;
     internal EmailReceiver EmailReceiver { get; } = _emailReceiver;
@@ -163,6 +168,7 @@ public sealed partial class Autogrator(SharePointClient _client, EmailReceiver _
                 await ProcessEmailAsync(email);
             else
                 await Task.Delay(Options.ExecutionInterval);
+            TimeNotifier?.NotifyIfTime();
         }
     }
 

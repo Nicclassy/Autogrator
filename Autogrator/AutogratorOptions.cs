@@ -6,7 +6,7 @@ public sealed class AutogratorOptions {
     public string EmailsFolderName { get; set; } = "Emails";
     public string LogFileName { get; init; } = "log.txt";
     public string LoggingFolder { get; init; } = "logs";
-    public bool ReviewSentEmails { get; set; } = true;
+    public bool ReviewSentEmails { get; set; } = false;
     public bool OverwriteDownloads { get; set; } = false;
     public bool LogRejectedEmails { get; set; } = true;
     public bool EnableRequestLogging { get; set; } = true;
